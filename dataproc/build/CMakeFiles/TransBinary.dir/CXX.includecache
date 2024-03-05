@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/root/lihongfu/CoroGraph/dataproc/TransBinary.cpp
+iostream
+-
+fstream
+-
+string
+-
+gflags/gflags.h
+-
+vector
+-
+../other/type.hpp
+/root/lihongfu/CoroGraph/other/type.hpp
+omp.h
+/root/lihongfu/CoroGraph/dataproc/omp.h
+
+/root/lihongfu/CoroGraph/other/type.hpp
+stdint.h
+-
+array
+-
+assert.h
+-
+

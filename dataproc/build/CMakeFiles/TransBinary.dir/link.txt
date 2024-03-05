@@ -1,0 +1,1 @@
+/usr/bin/c++   -std=c++20 -fopenmp  -rdynamic CMakeFiles/TransBinary.dir/TransBinary.cpp.o  -o /root/lihongfu/CoroGraph/datatoolkit/TransBinary  -Wl,-Bstatic -lgflags -lglog -Wl,-Bdynamic 
