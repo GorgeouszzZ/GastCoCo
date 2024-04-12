@@ -1,4 +1,4 @@
-# GastCoCo v0.1
+# GastCoCo v0.2
 <!-- ![GastCoCo](GastCoCo.webp) -->
 <div align=left> <img src="./others/GastCoCo.webp" width = 30%/> </div>
 
@@ -25,5 +25,5 @@ make
 ```shell
 ./toolkit/coSSSP [data] [datainfo] [thread] [coro] [source]
 ./toolkit/coPageRank [data] [datainfo] [thread] [coro]
-./toolkit/coBatchInsert [data] [datainfo]
+./toolkit/coBatchInsert [data] [datainfo] [thread] [coro] [batchsize]
 ```

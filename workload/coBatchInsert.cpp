@@ -212,9 +212,9 @@ double BatchInsertEdge(CoroGraph::CBList& g, vector<Gedge_noWeight>& EdgeList)
 
 int main(int argc, char ** argv)
 {
-    if(argc<3)
+    if(argc<5)
     {
-        cout<<"[efile] [infofile] \n";
+        cout<<"[efile] [infofile] [thread] [coro]\n";
         exit(-1);
     }
     string GRAPH_DIR = argv[1];
@@ -222,10 +222,13 @@ int main(int argc, char ** argv)
     auto [V, E] = LoadEVFromInfoFile(GRAPH_INFO_DIR);
     thread_num = atoi(argv[3]);
     coro_num = atoi(argv[4]);
+    auto upsz = atoi(argv[5]);
 
     CoroGraph::CBList G(V, E, GRAPH_DIR);
     printf("load graph finish\n");
-    std::vector<uint32_t> update_sizes = {10000};
+    std::vector<uint32_t> update_sizes;
+    update_sizes.emplace_back(upsz);
+    // std::vector<uint32_t> update_sizes = {10000};
     // std::vector<uint32_t> update_sizes = {10, 100, 1000, 10000, 100000, 1000000, 10000000};//10, 100, 1000 ,10000,,1000000, 10000000
     auto r = random_aspen();
     auto update_times = std::vector<double>();
