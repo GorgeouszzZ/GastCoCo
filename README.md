@@ -24,6 +24,6 @@ make
 ## 3. How to Run
 ```shell
 ./toolkit/coSSSP [data] [datainfo] [thread] [coro] [source]
-./toolkit/copagerank [data] [datainfo] [thread] [coro]
-./toolkit/parallel_batch_coInsert [data] [datainfo]
+./toolkit/coPageRank [data] [datainfo] [thread] [coro]
+./toolkit/coBatchInsert [data] [datainfo]
 ```

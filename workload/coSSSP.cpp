@@ -1,80 +1,161 @@
-#include "../Bind_cpu.hpp"
-#include "../Initalize_container.hpp"
-#include "Slice_for_CBL_coro.hpp"
-#include <iostream>
-#include <stdio.h>
-#include <chrono>
-#include "./coSSSP.hpp"
-using namespace std;
+#include "../CBList/graph_coro.hpp"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <chrono>
+
+#include "../other/atomic.hpp"
+#include "../other/prefetch.hpp"
+
+#include <math.h>
+
+typedef int Weight;
 thread_local tcalloc coroutine_allocator;
 
-//best coro:60 prefetch:64 
-
-int main(int argc, char ** argv)
-{
-    if(argc<6)
+Weight * distance;
+VertexSubset * active_in;
+VertexSubset * active_out;
+generator<void> coro_sssp_sparse(const CoroGraph::CBList* cbl, VertexID src_start, VertexID src_end, int& activated)
+{   
+    for(VertexID src = src_start; src < src_end; ++src)
     {
-        cout<<"[efile] [info_file] [sssp_source] [iter] [coro_num]\n";//graph type
-        exit(-1);
-    }
-    string GRAPH_DIR = argv[1];
-    auto [V, E]
-    int E = atoi(argv[2]);
-    int V = atoi(argv[3]);
-    int source = atoi(argv[4]);
-    int iter = atoi(argv[5]);
-    int coro_num = atoi(argv[6]);
-    iter = coro_num * iter;
-    BindCpu(2);
-    CBList test0(V,E,GRAPH_DIR);
-    vector<int> node_state(test0.Node_num);
-    cout<<node_state.size()<<endl;
-    init_vec(node_state, 100000);
-    node_state[source] = 0;
-    vector<coroutine_handle<>> sssp_tasks(coro_num);
-    int now_node = 0;
-    
-    int* segment = nullptr;
-    slice_for_coro(segment, coro_num, test0);
-    int segment_flag = 0;
-    int clean = 0;
-    for(auto &i : sssp_tasks)
-    {
-        i=SSSP(test0, segment[segment_flag], segment[segment_flag+1], node_state, true, clean, coro_num, iter).get_handle();
-        segment_flag++;
-    }
-    
-    //==============================================================time_start====================
-    auto start = std::chrono::steady_clock::now();//if compute new coroutine spending time?
-
-    
-    int finished = 0;
-    while(finished < sssp_tasks.size())
-    {
-        for(auto &t : sssp_tasks)
+        auto src_neighbour = cbl->NodeList[src];
+        if(src_neighbour.NeighboorCnt <= LV1CHUNK_NCNT)
         {
-            if(t)
+            for(IndexType src_i=0;src_i<src_neighbour.NeighboorCnt;src_i++)
             {
-                if(t.done())
-                {
-                    finished++;
-                    t.destroy();
-                    t = nullptr;
-                }
-                else
-                {
-                    t.resume();
+                VertexID dst = src_neighbour.Neighboor.nextLv1Chunk->NeighboorChunk[src_i].dest;
+                auto val = src_neighbour.Neighboor.nextLv1Chunk->NeighboorChunk[src_i].value;
+                Weight relax_dist = distance[src] + val;
+                if (relax_dist < distance[dst]) {
+                    if (write_min(&distance[dst], relax_dist)) {
+                        active_out->set_bit(dst);
+                        activated += 1;
+                    } 
                 }
             }
         }
+        else
+        {
+            auto n_ptr = src_neighbour.Neighboor;
+            for(IndexType loop_i=0;loop_i<src_neighbour.ChunkCnt;loop_i++)
+            {
+                prefetch_Chunk(n_ptr.nextLeafChunk);
+                co_await std::suspend_always{};
+                for(IndexType src_i=0;src_i<n_ptr.nextLeafChunk->count;src_i++)
+                {
+                    VertexID dst = n_ptr.nextLeafChunk->NeighboorChunk[src_i].dest;
+                    auto val = n_ptr.nextLeafChunk->NeighboorChunk[src_i].value;
+                    Weight relax_dist = distance[src] + val;
+                    if (relax_dist < distance[dst]) {
+                        if (write_min(&distance[dst], relax_dist)) {
+                            active_out->set_bit(dst);
+                            activated += 1;
+                        }
+                    }
+                }
+                n_ptr = n_ptr.nextLeafChunk->nextPtr;
+            }
+        }
     }
-
-    auto end = std::chrono::steady_clock::now();
-//==============================================================================time_stop===========================
-    std::chrono::duration<double, std::micro> elapsed = end - start; // std::micro 表示以微秒为时间单位
-    std::cout<< "time: "  << elapsed.count() << "us" << std::endl;
-    cout<<node_state[6];
-    return EXIT_SUCCESS;
 }
 
+generator<void> coro_sssp_dense(const CoroGraph::CBList* cbl, VertexID dst_start, VertexID dst_end, int& activated)
+{   
+    for(VertexID dst = dst_start; dst < dst_end; ++dst)
+    {
+        auto dst_neighbour = cbl->NodeList[dst];
+        if(dst_neighbour.NeighboorCnt <= LV1CHUNK_NCNT)
+        {
+            for(IndexType dst_i=0;dst_i<dst_neighbour.NeighboorCnt;dst_i++)
+            {
+                VertexID src = dst_neighbour.Neighboor.nextLv1Chunk->NeighboorChunk[dst_i].dest;
+                auto val = dst_neighbour.Neighboor.nextLv1Chunk->NeighboorChunk[dst_i].value;
+                Weight relax_dist = distance[src] + val;
+                if (relax_dist < distance[dst]) {
+                    ++activated;
+                    distance[dst] = relax_dist;
+                    active_out->set_bit(dst);
+                }
+            }
+        }
+        else
+        {
+            auto n_ptr = dst_neighbour.Neighboor;
+            for(IndexType loop_i=0;loop_i<dst_neighbour.ChunkCnt;loop_i++)
+            {
+                prefetch_Chunk(n_ptr.nextLeafChunk);
+                co_await std::suspend_always{};
+                for(IndexType dst_i=0;dst_i<n_ptr.nextLeafChunk->count;dst_i++)
+                {
+                    VertexID src = n_ptr.nextLeafChunk->NeighboorChunk[dst_i].dest;
+                    auto val = n_ptr.nextLeafChunk->NeighboorChunk[dst_i].value;
+                    Weight relax_dist = distance[src] + val;
+                    if (relax_dist < distance[dst]) {
+                        ++activated;
+                        distance[dst] = relax_dist;
+                        active_out->set_bit(dst);
+                    }
+                }
+                n_ptr = n_ptr.nextLeafChunk->nextPtr;
+            }
+        }
+    }
+}
+
+void compute(Graph<Weight> * graph, VertexID root) {
+
+  auto vertices = graph->cblptr->NodeNum;
+
+  distance = new Weight[vertices];
+  active_in = new VertexSubset(vertices);
+  active_out = new VertexSubset(vertices);
+  active_in->clear();
+  active_in->set_bit(root);
+  graph->fill_vertex_array(distance, (Weight)1e9);
+  distance[root] = (Weight)0;
+  VertexID active_vertices = 1;
+  int i_i=0;
+  auto start = std::chrono::steady_clock::now();
+
+  for (;active_vertices>0;i_i++)  {
+
+    active_out->clear();
+
+    active_vertices = graph->coro_process_edges<int,double>(
+      coro_sssp_sparse,
+      coro_sssp_dense,
+      active_in
+    );
+    std::swap(active_in, active_out);
+  }
+    std::cout<<"round: "<<i_i<<std::endl;
+  auto end = std::chrono::steady_clock::now();
+  std::chrono::duration<double, std::micro> elapsed = end - start; // std::micro 表示以微秒为时间单位
+  std::cout<< "time: "  << elapsed.count() << "us" << std::endl;
+  std::cout<<distance[6]<<std::endl;
+
+}
+
+int main(int argc, char ** argv) {
+
+  if (argc<6) {
+    printf("pagerank [file] [infofile] [thread] [coro] [root]\n");
+    exit(-1);
+  }
+
+  Graph<Weight> * graph;
+  graph = new Graph<Weight>();
+  int threads = std::atoi(argv[3]);
+  int coros = std::atoi(argv[4]);
+  graph->load_directed(argv[1], argv[2], threads, coros);
+  VertexID root = std::atoi(argv[5]);
+
+  compute(graph, root);
+//   for (int run=0;run<5;run++) {
+//     compute(graph, iterations);
+//   }
+
+  delete graph;
+  return 0;
+}
