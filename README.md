@@ -27,3 +27,16 @@ make
 ./toolkit/coPageRank [data] [datainfo] [thread] [coro]
 ./toolkit/coBatchInsert [data] [datainfo] [thread] [coro] [batchsize]
 ```
+
+## 4. Dataset
+[data] format is [src-vertex dst-vertex weight]. By default, GastCoCo loads binary data files. Once you have prepared the [data], you can use "GastCoCo/others/datatoolkit/TransBinary" to convert it into a binary file, which will speed up data loading. If you prefer not to do this, you can modify the CBList constructor to use other data loading functions provided in "GastCoCo/other/graphIO.hpp."
+[datainfo] format is [vertex-num edge-num].
+```shell
+[data] // Binary
+0 1 300
+1 2 100
+3 4 50
+
+[datainfo]
+5 3
+```
