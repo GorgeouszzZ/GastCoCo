@@ -1,4 +1,4 @@
-# GastCoCo v0.2
+# GastCoCo v1.0
 <!-- ![GastCoCo](GastCoCo.webp) -->
 <div align=left> <img src="./others/GastCoCo.webp" width = 30%/> </div>
 
@@ -12,6 +12,7 @@ Co-Design for Dynamic Graph Processing)
 - GCC >= 10.3.0
 - NUMA
 - CMAKE >= 3.14
+- gflags >= 2.2.2
 - Linux/Unix
 ### 2.2 Setup
 ```shell
