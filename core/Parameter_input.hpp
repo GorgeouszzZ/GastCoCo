@@ -24,6 +24,14 @@ static bool ValidateApp(const char* flagname, const std::string& value)
    return false; 
 }
 
+static bool ValidatePath(const char* flagname, const std::string& value)
+{
+   if (value != "")
+        return true;
+   printf("Please enter the graph data path.\n");
+   return false; 
+}
+
 static bool ValidatePositiveNumber(const char* flagname, int32_t value)
 {
    if (value > 0)
@@ -52,7 +60,9 @@ DEFINE_int32(s, 0, "Source in some apps.");
 DEFINE_int32(bs, 10000, "Batch size in batch update.");
 DEFINE_bool(em, false, "Execute mode: true = Sequential, false = Interleaved.");
 DEFINE_bool(cm, false, "Compute mode: true = pull/push, false = pull+push.");
+
 static const bool app_dummy = google::RegisterFlagValidator(&FLAGS_app, &ValidateApp);
+static const bool data_dummy = google::RegisterFlagValidator(&FLAGS_data, &ValidatePath);
 static const bool t_dummy = google::RegisterFlagValidator(&FLAGS_t, &ValidatePositiveNumber);
 static const bool c_dummy = google::RegisterFlagValidator(&FLAGS_c, &ValidatePositiveNumber);
 static const bool s_dummy = google::RegisterFlagValidator(&FLAGS_s, &ValidatePositiveNumberAndZero);
