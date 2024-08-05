@@ -1,12 +1,17 @@
 #pragma once
+
 #include "type.hpp"
 #include <string>
+#include <tuple>
 #include <vector>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include "omp.h"
 #include "../other/SliceTask.hpp"
+
+namespace GastCoCo
+{
 
 #define newMemory(__E,__n) (__E*) malloc((__n)*sizeof(__E))
 std::vector<Gedge> LoadGraphFromFile(EdgeID E, std::string GRAPH_DIR)
@@ -106,8 +111,8 @@ std::vector<Gedge> LoadGraphFromBinaryFile(EdgeID E, std::string GRAPH_DIR) {
     #pragma omp parallel for
     for(int i=0;i<E;++i)
     {
-        EdgeList[i].start_point = Elist[3 * i];
-        EdgeList[i].end_point  = Elist[3 * i + 1];
+        EdgeList[i].start_vertex = Elist[3 * i];
+        EdgeList[i].end_vertex  = Elist[3 * i + 1];
         EdgeList[i].value  = Elist[3 * i + 2];
     }
     return EdgeList;
@@ -128,8 +133,8 @@ std::vector<Gedge> LoadGraphFromBinaryFileNoWeight(EdgeID E, std::string GRAPH_D
     #pragma omp parallel for
     for(int i=0;i<E;++i)
     {
-        EdgeList[i].start_point = Elist[2 * i];
-        EdgeList[i].end_point  = Elist[2 * i + 1];
+        EdgeList[i].start_vertex = Elist[2 * i];
+        EdgeList[i].end_vertex  = Elist[2 * i + 1];
         EdgeList[i].value  = random(10000);
     }
     return EdgeList;
@@ -155,11 +160,11 @@ std::vector<Gedge> LoadGraphFromBGBinaryFile(EdgeID E, std::string GRAPH_DIR) {
         #pragma omp parallel for
         for(int i=0;i<n;++i)
         {
-            EdgeList[i + start_Vid].start_point = Elist[3 * i];
-            EdgeList[i + start_Vid].end_point  = Elist[3 * i + 1];
+            EdgeList[i + start_Vid].start_vertex = Elist[3 * i];
+            EdgeList[i + start_Vid].end_vertex  = Elist[3 * i + 1];
             EdgeList[i + start_Vid].value  = Elist[3 * i + 2];
             // if(i < 10)
-            // std::cout << Elist[3*i] << " " << Elist[3*i+1] << " " << Elist[3*i+2] << "|||" << EdgeList[i+start_Vid].start_point << EdgeList[i+start_Vid].end_point << std::endl;
+            // std::cout << Elist[3*i] << " " << Elist[3*i+1] << " " << Elist[3*i+2] << "|||" << EdgeList[i+start_Vid].start_vertex << EdgeList[i+start_Vid].end_vertex << std::endl;
         }
     }
 
@@ -167,22 +172,38 @@ std::vector<Gedge> LoadGraphFromBGBinaryFile(EdgeID E, std::string GRAPH_DIR) {
     return EdgeList;
 }
 
-std::pair<VertexID, EdgeID> LoadEVFromInfoFile(std::string GRAPH_DIR)
+std::tuple<VertexID, EdgeID, std::string, bool> LoadEVFromInfoFile(std::string GRAPH_INFO_DIR)
 {
     std::ifstream fin;
-    fin.open(GRAPH_DIR, std::ios::in);
-    std::string line;
+    fin.open(GRAPH_INFO_DIR, std::ios::in);
+    std::string line, datapath;
+    bool IsBinary = false;
     VertexID V;
     EdgeID E;
-    if(fin.is_open()) {
-            std::getline(fin, line);
-            std::istringstream iss(line);
-            iss>>V>>E;
+    if(fin.is_open())
+    {
+        std::getline(fin, line);
+        std::istringstream iss(line);
+        iss>>V>>E;
+        std::getline(fin, datapath);
+        std::getline(fin, line);
+        IsBinary = (line == "1");
     }
     else
     {
         printf("infofile load error\n");
     }   
     fin.close();
-    return std::make_pair(V, E);
+    return std::make_tuple(V, E, datapath, IsBinary);
+}
+
+std::tuple<VertexID, EdgeID, std::vector<Gedge>> LoadGraphProxy(std::string GRAPH_INFO_DIR)
+{
+    auto [v, e, GRAPH_DIR, IsBinary] = LoadEVFromInfoFile(GRAPH_INFO_DIR);
+    if(IsBinary)
+        return std::make_tuple(v, e, LoadGraphFromBGBinaryFile(e, GRAPH_DIR));
+    else
+        return std::make_tuple(v, e, LoadGraphFromFile(e, GRAPH_DIR));
+}
+
 }

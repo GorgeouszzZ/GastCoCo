@@ -7,19 +7,18 @@
 #include <iostream>
 
 #include "sm-defs.hpp"
-
-#define CACHELINE_SIZE 64
+#include "../CBList/CBListChunkSize.hpp"
 #define CHAR_BIT      8
 
 // Simple thread caching allocator.
 class tcalloc {
-    struct alignas(CACHELINE_SIZE) FrameNode {
+    struct alignas(CACHE_LINE_SIZE) FrameNode {
         FrameNode *next;
         uint8_t entry_index;
-        uint8_t padding[CACHELINE_SIZE - sizeof(intptr_t) - sizeof(uint8_t)];
+        uint8_t padding[CACHE_LINE_SIZE - sizeof(intptr_t) - sizeof(uint8_t)];
     };
 
-    static_assert(sizeof(FrameNode) == CACHELINE_SIZE, "");
+    static_assert(sizeof(FrameNode) == CACHE_LINE_SIZE, "");
 
    public:
     tcalloc() { 
@@ -68,7 +67,7 @@ class tcalloc {
         if (frame_to_alloc == nullptr) {
             const size_t frame_size = 1 << (entry_index + kBeginSizeExp);
             frame_to_alloc = reinterpret_cast<FrameNode *>(alloc_from_arena(
-                sizeof(FrameNode) + frame_size, CACHELINE_SIZE));
+                sizeof(FrameNode) + frame_size, CACHE_LINE_SIZE));
             frame_to_alloc->entry_index = entry_index;
         } else {
             entries[entry_index] = frame_to_alloc->next;

@@ -4,6 +4,8 @@
 #include <array>
 #include <assert.h>
 
+namespace GastCoCo
+{
 struct Empty { };
 using VertexID = uint32_t;
 using EdgeID = uint32_t;
@@ -35,18 +37,18 @@ struct AdjUnit
 
 struct Gedge
 {
-    VertexID start_point;
-    VertexID end_point;
+    VertexID start_vertex;
+    VertexID end_vertex;
     WeightType value;
     Gedge(){};
-    Gedge(VertexID src, VertexID dst, WeightType v):start_point(src),end_point(dst),value(v){};
+    Gedge(VertexID src, VertexID dst, WeightType v):start_vertex(src),end_vertex(dst),value(v){};
 };
 
 struct Gedge_noWeight
 {
-    VertexID start_point;
-    VertexID end_point;
-    Gedge_noWeight(VertexID src, VertexID dst):start_point(src),end_point(dst){};
+    VertexID start_vertex;
+    VertexID end_vertex;
+    Gedge_noWeight(VertexID src, VertexID dst):start_vertex(src),end_vertex(dst){};
 };
 
 // template <class T>
@@ -60,3 +62,4 @@ struct Gedge_noWeight
 //     E(EE), numRows(r), numCols(c), nonZeros(nz) {}
 //   edgeArray() {}
 // };
+}

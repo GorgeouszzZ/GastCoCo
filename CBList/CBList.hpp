@@ -17,9 +17,14 @@
 
 //#pragma pack(1)
 
-namespace CoroGraph
+namespace GastCoCo
 {
 
+enum ComputeMode {
+    Pull,    
+    Push,  
+    Mixed    
+};
 
 
 struct InterNode;
@@ -98,7 +103,7 @@ public:
 }__attribute__ ((packed));
 
 //TODO: AOS/SOA
-struct alignas(CACHE_LINE_SIZE * 2) Lv1Chunk
+struct alignas(CACHE_LINE_SIZE * CACHE_LINE_L1_MULT) Lv1Chunk
 {
     uint32_t count;
     int32_t nextType;//for next
@@ -132,10 +137,12 @@ public:
 class CBList
 {
 public:
-    VertexID NodeNum;
+    VertexID VertexNum;
     EdgeID EdgeNum;
-    CBLNode* NodeList;
-    nextPointer GraphComputeStart;
+    CBLNode* VertexTableOut;
+    CBLNode* VertexTableIn;
+    nextPointer GTChainOut;
+    nextPointer GTChainIn;
     std::vector<std::mutex> writelock;
     // std::vector<Futex> vertex_lock;
     std::vector<std::mutex> vertex_lock;
@@ -153,16 +160,22 @@ public:
         EdgeIterator operator++ ();
         AdjUnit GetEdegInfo();
     };
+    CBList(std::string infopath, ComputeMode cm);
     CBList(VertexID Node, EdgeID Edge, std::string path);
     CBList(VertexID Node, EdgeID Edge, std::string path, bool incoming);
     CBList(VertexID Node, EdgeID Edge, std::string path, int mode);
     CBList(VertexID Node, EdgeID Edge, std::string path, EdgeID all_edge_num, std::vector<Gedge>& RemainEdgeList);
-    bool InsertEdge(VertexID src, AdjUnit NeighboorINFO);
-    bool ReadEdge(VertexID src, VertexID dst);
-    std::vector<VertexID> GetNeighbor(VertexID src);
+    bool InsertEdgeOut(VertexID src, AdjUnit NeighboorINFO);
+    bool InsertEdgeIn(VertexID src, AdjUnit NeighboorINFO);
+    bool ReadEdgeOut(VertexID src, VertexID dst);
+    bool ReadEdgeIn(VertexID src, VertexID dst);
+    std::vector<VertexID> GetNeighborOut(VertexID src);
+    std::vector<VertexID> GetNeighborIn(VertexID src);
     bool InsertGraphIE(std::string path, uint64_t startline, uint64_t endline);
     Gedge* GetInsertList(std::string path, uint64_t startline, uint64_t endline);
-    void AddEdgeBatch(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count);
+    void AddEdgeBatchOut(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count);
+    void AddEdgeBatchIn(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count);
+    void ConnectGTChain(nextPointer& GTChain, CBLNode*& VertexTable);
 };
 
 void Node::Print()
@@ -453,160 +466,71 @@ LeafChunk* BplusTree::GetLeafEnd()
     }
     return (LeafChunk*)p;
 }
-
-//TODO:unsorted ---- insert method
-CBList::CBList(VertexID NodeNum, EdgeID EdgeNum, std::string path):writelock(NodeNum), vertex_lock(NodeNum)
+CBList::CBList(std::string infopath, ComputeMode cm):writelock(VertexNum), vertex_lock(VertexNum)
 {
-    this->EdgeNum = EdgeNum;
-    this->NodeNum = NodeNum;
-    this->NodeList = new CBLNode[NodeNum];
-    Lv1Chunk* Lv1Clist = new Lv1Chunk[NodeNum];
-    #pragma omp parallel for num_threads(omp_get_max_threads()) 
-    for(int i=0;i<NodeNum;++i)
-        this->NodeList[i].Neighboor.nextLv1Chunk = Lv1Clist+i;
-    auto EdgeListFromFile = LoadGraphFromBGBinaryFile(EdgeNum, path);
-    std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
-    std::cout << "load outgoingCBList...\n";
-    for(auto& edge:EdgeListFromFile)
-        this->NodeList[edge.start_point].Insert({edge.end_point, edge.value});
-    //assert(max_ == NodeNum - 1);
-    //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
-    this->GraphComputeStart = NodeList[0].Neighboor; 
-    #pragma omp parallel for num_threads(omp_get_max_threads()) 
-    for(VertexID i=1;i<NodeNum;++i)
+    if(cm == Pull || cm == Push || cm == Mixed)
     {
-        if(NodeList[i-1].Level == 1)
-        {             
-            NodeList[i-1].Neighboor.nextLv1Chunk->nextPtr = NodeList[i].Neighboor;
-            if(NodeList[i].NeighboorCnt <= LV1CHUNK_NCNT) 
-                NodeList[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
-            else NodeList[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
-        }
-        else if(NodeList[i-1].Level == 2)
+        auto [v, e, EdgeListFromFile] = LoadGraphProxy(infopath);
+        this->writelock = std::vector<std::mutex>(v);
+        this->vertex_lock = std::vector<std::mutex>(v);
+        this->EdgeNum = e;
+        this->VertexNum = v;
+        #ifdef DEBUG
+            std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
+        #endif
+        if(cm == Pull)
         {
-            NodeList[i-1].BPT.GetLeafEnd()->nextPtr = NodeList[i].Neighboor;
-            if(NodeList[i].NeighboorCnt <= LV1CHUNK_NCNT) 
-                NodeList[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
-            else NodeList[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
+            this->VertexTableIn = new CBLNode[VertexNum];
+            auto Lv1ClistIn = new Lv1Chunk[VertexNum];
+            this->VertexTableOut = nullptr;
+            #pragma omp parallel for num_threads(omp_get_max_threads()) 
+            for(IndexType v_i=0; v_i<VertexNum; ++v_i)
+                this->VertexTableIn[v_i].Neighboor.nextLv1Chunk = Lv1ClistIn + v_i;
+            #ifdef DEBUG
+                std::cout << "load incomingCBList...\n";
+            #endif
+            for(auto& edge:EdgeListFromFile)
+                this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
+        }
+        else if(cm == Push)
+        {
+            this->VertexTableOut = new CBLNode[VertexNum];
+            auto Lv1ClistOut = new Lv1Chunk[VertexNum];
+            this->VertexTableIn = nullptr;
+            #pragma omp parallel for num_threads(omp_get_max_threads()) 
+            for(IndexType v_i=0; v_i<VertexNum; ++v_i)
+                this->VertexTableOut[v_i].Neighboor.nextLv1Chunk = Lv1ClistOut + v_i;
+            #ifdef DEBUG
+                std::cout << "load outgoingCBList...\n";
+            #endif
+            for(auto& edge:EdgeListFromFile)
+                this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
         }
         else
         {
-            printf("load graph error-Level?\n");
-            exit(-1);
-        }
-    }
-    if(NodeList[NodeNum-1].Level==1)
-        NodeList[NodeNum-1].Neighboor.nextLv1Chunk->nextType = -10;
-    else if(NodeList[NodeNum-1].Level==2)
-        NodeList[NodeNum-1].Neighboor.nextLeafChunk->nextType = -10;
-}
-
-CBList::CBList(VertexID NodeNum, EdgeID EdgeNum, std::string path, bool incoming):writelock(NodeNum), vertex_lock(NodeNum)
-{
-    this->EdgeNum = EdgeNum;
-    this->NodeNum = NodeNum;
-    this->NodeList = new CBLNode[NodeNum];
-    Lv1Chunk* Lv1Clist = new Lv1Chunk[NodeNum];
-    #pragma omp parallel for num_threads(omp_get_max_threads()) 
-    for(int i=0;i<NodeNum;++i)
-        this->NodeList[i].Neighboor.nextLv1Chunk = Lv1Clist+i;
-    auto EdgeListFromFile = LoadGraphFromBGBinaryFile(EdgeNum, path);
-    std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
-    std::cout << "load incomingCBList...\n";
-
-    for(auto& edge:EdgeListFromFile)
-        this->NodeList[edge.end_point].Insert({edge.start_point, edge.value});
-
-    //assert(max_ == NodeNum - 1);
-    //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
-    this->GraphComputeStart = NodeList[0].Neighboor; 
-    #pragma omp parallel for num_threads(omp_get_max_threads()) 
-    for(VertexID i=1;i<NodeNum;++i)
-    {
-        if(NodeList[i-1].Level == 1)
-        {             
-            NodeList[i-1].Neighboor.nextLv1Chunk->nextPtr = NodeList[i].Neighboor;
-            if(NodeList[i].NeighboorCnt <= LV1CHUNK_NCNT) 
-                NodeList[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
-            else NodeList[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
-        }
-        else if(NodeList[i-1].Level == 2)
-        {
-            NodeList[i-1].BPT.GetLeafEnd()->nextPtr = NodeList[i].Neighboor;
-            if(NodeList[i].NeighboorCnt <= LV1CHUNK_NCNT) 
-                NodeList[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
-            else NodeList[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
-        }
-        else
-        {
-            printf("load graph error-Level?\n");
-            exit(-1);
-        }
-    }
-    if(NodeList[NodeNum-1].Level==1)
-        NodeList[NodeNum-1].Neighboor.nextLv1Chunk->nextType = -10;
-    else if(NodeList[NodeNum-1].Level==2)
-        NodeList[NodeNum-1].Neighboor.nextLeafChunk->nextType = -10;
-}
-
-CBList::CBList(VertexID NodeNum, EdgeID EdgeNum, std::string path, int mode):writelock(NodeNum), vertex_lock(NodeNum)
-{
-    if(mode >= 1 && mode <= 2)
-    {
-        printf("Weight = 1 mode!\n");
-        this->EdgeNum = EdgeNum;
-        this->NodeNum = NodeNum;
-        this->NodeList = new CBLNode[NodeNum];
-        Lv1Chunk* Lv1Clist = new Lv1Chunk[NodeNum];
-        #pragma omp parallel for num_threads(omp_get_max_threads()) 
-        for(int i=0;i<NodeNum;++i)
-            this->NodeList[i].Neighboor.nextLv1Chunk = Lv1Clist+i;
-        auto EdgeListFromFile = LoadGraphFromBGBinaryFile(EdgeNum, path);
-        std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
-
-        if(mode == 1)
-        {
-            std::cout << "load incomingCBList...\n";
+            this->VertexTableOut = new CBLNode[VertexNum];
+            this->VertexTableIn = new CBLNode[VertexNum];
+            Lv1Chunk* Lv1ClistOut = new Lv1Chunk[VertexNum];
+            Lv1Chunk* Lv1ClistIn = new Lv1Chunk[VertexNum];
+            #pragma omp parallel for num_threads(omp_get_max_threads()) 
+            for(IndexType v_i=0; v_i<VertexNum; ++v_i)
+            {    
+                this->VertexTableOut[v_i].Neighboor.nextLv1Chunk = Lv1ClistOut + v_i;
+                this->VertexTableIn[v_i].Neighboor.nextLv1Chunk = Lv1ClistIn + v_i;
+            }
             for(auto& edge:EdgeListFromFile)
-                this->NodeList[edge.end_point].Insert({edge.start_point, 1});
-        }
-        else if(mode == 2)
-        {
-            std::cout << "load outgoingCBList...\n";
-            for(auto& edge:EdgeListFromFile)
-                this->NodeList[edge.start_point].Insert({edge.end_point, 1});
+            {
+                this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
+                this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
+            }
         }
 
-        //assert(max_ == NodeNum - 1);
+        //assert(max_ == VertexNum - 1);
         //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
-        this->GraphComputeStart = NodeList[0].Neighboor; 
-        #pragma omp parallel for num_threads(omp_get_max_threads()) 
-        for(VertexID i=1;i<NodeNum;++i)
-        {
-            if(NodeList[i-1].Level == 1)
-            {             
-                NodeList[i-1].Neighboor.nextLv1Chunk->nextPtr = NodeList[i].Neighboor;
-                if(NodeList[i].NeighboorCnt <= LV1CHUNK_NCNT) 
-                    NodeList[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
-                else NodeList[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
-            }
-            else if(NodeList[i-1].Level == 2)
-            {
-                NodeList[i-1].BPT.GetLeafEnd()->nextPtr = NodeList[i].Neighboor;
-                if(NodeList[i].NeighboorCnt <= LV1CHUNK_NCNT) 
-                    NodeList[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
-                else NodeList[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
-            }
-            else
-            {
-                printf("load graph error-Level?\n");
-                exit(-1);
-            }
-        }
-        if(NodeList[NodeNum-1].Level==1)
-            NodeList[NodeNum-1].Neighboor.nextLv1Chunk->nextType = -10;
-        else if(NodeList[NodeNum-1].Level==2)
-            NodeList[NodeNum-1].Neighboor.nextLeafChunk->nextType = -10;
+        if(cm == Pull || cm == Mixed)
+            ConnectGTChain(this->GTChainIn, this->VertexTableIn);
+        if(cm == Push || cm == Mixed)
+            ConnectGTChain(this->GTChainOut, this->VertexTableOut);
     }
     else
     {
@@ -614,41 +538,40 @@ CBList::CBList(VertexID NodeNum, EdgeID EdgeNum, std::string path, int mode):wri
         exit(-1);
     }
 }
-
-CBList::CBList(VertexID NodeNum, EdgeID EdgeNum, std::string path, EdgeID all_edge_num, std::vector<Gedge>& RemainEdgeList):
-                writelock(NodeNum), vertex_lock(NodeNum)
+//TODO:unsorted ---- insert method
+CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path):writelock(VertexNum), vertex_lock(VertexNum)
 {
     this->EdgeNum = EdgeNum;
-    this->NodeNum = NodeNum;
-    this->NodeList = new CBLNode[NodeNum];
-    Lv1Chunk* Lv1Clist = new Lv1Chunk[NodeNum];
+    this->VertexNum = VertexNum;
+    this->VertexTableOut = new CBLNode[VertexNum];
+    Lv1Chunk* Lv1Clist = new Lv1Chunk[VertexNum];
     #pragma omp parallel for num_threads(omp_get_max_threads()) 
-    for(int i=0;i<NodeNum;++i)
-        this->NodeList[i].Neighboor.nextLv1Chunk = Lv1Clist+i;
-    auto EdgeListFromFile = LoadGraphFromBGBinaryFile(all_edge_num, path);
+    for(int i=0;i<VertexNum;++i)
+        this->VertexTableOut[i].Neighboor.nextLv1Chunk = Lv1Clist+i;
+    auto EdgeListFromFile = LoadGraphFromBGBinaryFile(EdgeNum, path);
     std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
-    for(EdgeID i=0;i<EdgeNum;++i)
-        this->NodeList[EdgeListFromFile[i].start_point].Insert({EdgeListFromFile[i].end_point, EdgeListFromFile[i].value});
-    EdgeListFromFile.assign(EdgeListFromFile.begin()+EdgeNum, EdgeListFromFile.end());
-    RemainEdgeList.swap(EdgeListFromFile);
-    //assert(max_ == NodeNum - 1);
+    std::cout << "load outgoingCBList...\n";
+    for(auto& edge:EdgeListFromFile)
+        this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
+    //assert(max_ == VertexNum - 1);
     //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
-    this->GraphComputeStart = NodeList[0].Neighboor; 
-    for(VertexID i=1;i<NodeNum;++i)
+    this->GTChainOut = VertexTableOut[0].Neighboor; 
+    #pragma omp parallel for num_threads(omp_get_max_threads()) 
+    for(VertexID i=1;i<VertexNum;++i)
     {
-        if(NodeList[i-1].Level == 1)
+        if(VertexTableOut[i-1].Level == 1)
         {             
-            NodeList[i-1].Neighboor.nextLv1Chunk->nextPtr = NodeList[i].Neighboor;
-            if(NodeList[i].NeighboorCnt <= LV1CHUNK_NCNT) 
-                NodeList[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
-            else NodeList[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
+            VertexTableOut[i-1].Neighboor.nextLv1Chunk->nextPtr = VertexTableOut[i].Neighboor;
+            if(VertexTableOut[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+                VertexTableOut[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
+            else VertexTableOut[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
         }
-        else if(NodeList[i-1].Level == 2)
+        else if(VertexTableOut[i-1].Level == 2)
         {
-            NodeList[i-1].BPT.GetLeafEnd()->nextPtr = NodeList[i].Neighboor;
-            if(NodeList[i].NeighboorCnt <= LV1CHUNK_NCNT) 
-                NodeList[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
-            else NodeList[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
+            VertexTableOut[i-1].BPT.GetLeafEnd()->nextPtr = VertexTableOut[i].Neighboor;
+            if(VertexTableOut[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+                VertexTableOut[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
+            else VertexTableOut[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
         }
         else
         {
@@ -656,10 +579,173 @@ CBList::CBList(VertexID NodeNum, EdgeID EdgeNum, std::string path, EdgeID all_ed
             exit(-1);
         }
     }
-    if(NodeList[NodeNum-1].Level==1)
-        NodeList[NodeNum-1].Neighboor.nextLv1Chunk->nextType = -10;
-    else if(NodeList[NodeNum-1].Level==2)
-        NodeList[NodeNum-1].Neighboor.nextLeafChunk->nextType = -10;
+    if(VertexTableOut[VertexNum-1].Level==1)
+        VertexTableOut[VertexNum-1].Neighboor.nextLv1Chunk->nextType = -10;
+    else if(VertexTableOut[VertexNum-1].Level==2)
+        VertexTableOut[VertexNum-1].Neighboor.nextLeafChunk->nextType = -10;
+}
+
+CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path, bool incoming):writelock(VertexNum), vertex_lock(VertexNum)
+{
+    this->EdgeNum = EdgeNum;
+    this->VertexNum = VertexNum;
+    this->VertexTableIn = new CBLNode[VertexNum];
+    Lv1Chunk* Lv1Clist = new Lv1Chunk[VertexNum];
+    #pragma omp parallel for num_threads(omp_get_max_threads()) 
+    for(int i=0;i<VertexNum;++i)
+        this->VertexTableIn[i].Neighboor.nextLv1Chunk = Lv1Clist+i;
+    auto EdgeListFromFile = LoadGraphFromBGBinaryFile(EdgeNum, path);
+    std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
+    std::cout << "load incomingCBList...\n";
+
+    for(auto& edge:EdgeListFromFile)
+        this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
+
+    //assert(max_ == VertexNum - 1);
+    //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
+    this->GTChainIn = VertexTableIn[0].Neighboor; 
+    #pragma omp parallel for num_threads(omp_get_max_threads()) 
+    for(VertexID i=1;i<VertexNum;++i)
+    {
+        if(VertexTableIn[i-1].Level == 1)
+        {             
+            VertexTableIn[i-1].Neighboor.nextLv1Chunk->nextPtr = VertexTableIn[i].Neighboor;
+            if(VertexTableIn[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+                VertexTableIn[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
+            else VertexTableIn[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
+        }
+        else if(VertexTableIn[i-1].Level == 2)
+        {
+            VertexTableIn[i-1].BPT.GetLeafEnd()->nextPtr = VertexTableIn[i].Neighboor;
+            if(VertexTableIn[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+                VertexTableIn[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
+            else VertexTableIn[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
+        }
+        else
+        {
+            printf("load graph error-Level?\n");
+            exit(-1);
+        }
+    }
+    if(VertexTableIn[VertexNum-1].Level==1)
+        VertexTableIn[VertexNum-1].Neighboor.nextLv1Chunk->nextType = -10;
+    else if(VertexTableIn[VertexNum-1].Level==2)
+        VertexTableIn[VertexNum-1].Neighboor.nextLeafChunk->nextType = -10;
+}
+
+CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path, int mode):writelock(VertexNum), vertex_lock(VertexNum)
+{
+    printf("Abandon this CTOR for now.\n");
+    // if(mode >= 1 && mode <= 2)
+    // {
+    //     printf("Weight = 1 mode!\n");
+    //     this->EdgeNum = EdgeNum;
+    //     this->VertexNum = VertexNum;
+    //     this->VertexTable = new CBLNode[VertexNum];
+    //     Lv1Chunk* Lv1Clist = new Lv1Chunk[VertexNum];
+    //     #pragma omp parallel for num_threads(omp_get_max_threads()) 
+    //     for(int i=0;i<VertexNum;++i)
+    //         this->VertexTable[i].Neighboor.nextLv1Chunk = Lv1Clist+i;
+    //     auto EdgeListFromFile = LoadGraphFromBGBinaryFile(EdgeNum, path);
+    //     std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
+
+    //     if(mode == 1)
+    //     {
+    //         std::cout << "load incomingCBList...\n";
+    //         for(auto& edge:EdgeListFromFile)
+    //             this->VertexTable[edge.end_vertex].Insert({edge.start_vertex, 1});
+    //     }
+    //     else if(mode == 2)
+    //     {
+    //         std::cout << "load outgoingCBList...\n";
+    //         for(auto& edge:EdgeListFromFile)
+    //             this->VertexTable[edge.start_vertex].Insert({edge.end_vertex, 1});
+    //     }
+
+    //     //assert(max_ == VertexNum - 1);
+    //     //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
+    //     this->GTChain = VertexTable[0].Neighboor; 
+    //     #pragma omp parallel for num_threads(omp_get_max_threads()) 
+    //     for(VertexID i=1;i<VertexNum;++i)
+    //     {
+    //         if(VertexTable[i-1].Level == 1)
+    //         {             
+    //             VertexTable[i-1].Neighboor.nextLv1Chunk->nextPtr = VertexTable[i].Neighboor;
+    //             if(VertexTable[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+    //                 VertexTable[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
+    //             else VertexTable[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
+    //         }
+    //         else if(VertexTable[i-1].Level == 2)
+    //         {
+    //             VertexTable[i-1].BPT.GetLeafEnd()->nextPtr = VertexTable[i].Neighboor;
+    //             if(VertexTable[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+    //                 VertexTable[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
+    //             else VertexTable[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
+    //         }
+    //         else
+    //         {
+    //             printf("load graph error-Level?\n");
+    //             exit(-1);
+    //         }
+    //     }
+    //     if(VertexTable[VertexNum-1].Level==1)
+    //         VertexTable[VertexNum-1].Neighboor.nextLv1Chunk->nextType = -10;
+    //     else if(VertexTable[VertexNum-1].Level==2)
+    //         VertexTable[VertexNum-1].Neighboor.nextLeafChunk->nextType = -10;
+    // }
+    // else
+    // {
+    //     printf("mode error!\n");
+    //     exit(-1);
+    // }
+}
+
+CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path, EdgeID all_edge_num, std::vector<Gedge>& RemainEdgeList):
+                writelock(VertexNum), vertex_lock(VertexNum)
+{
+    printf("Abandon this CTOR for now.\n");
+    // this->EdgeNum = EdgeNum;
+    // this->VertexNum = VertexNum;
+    // this->VertexTable = new CBLNode[VertexNum];
+    // Lv1Chunk* Lv1Clist = new Lv1Chunk[VertexNum];
+    // #pragma omp parallel for num_threads(omp_get_max_threads()) 
+    // for(int i=0;i<VertexNum;++i)
+    //     this->VertexTable[i].Neighboor.nextLv1Chunk = Lv1Clist+i;
+    // auto EdgeListFromFile = LoadGraphFromBGBinaryFile(all_edge_num, path);
+    // std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
+    // for(EdgeID i=0;i<EdgeNum;++i)
+    //     this->VertexTable[EdgeListFromFile[i].start_vertex].Insert({EdgeListFromFile[i].end_vertex, EdgeListFromFile[i].value});
+    // EdgeListFromFile.assign(EdgeListFromFile.begin()+EdgeNum, EdgeListFromFile.end());
+    // RemainEdgeList.swap(EdgeListFromFile);
+    // //assert(max_ == VertexNum - 1);
+    // //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
+    // this->GTChain = VertexTable[0].Neighboor; 
+    // for(VertexID i=1;i<VertexNum;++i)
+    // {
+    //     if(VertexTable[i-1].Level == 1)
+    //     {             
+    //         VertexTable[i-1].Neighboor.nextLv1Chunk->nextPtr = VertexTable[i].Neighboor;
+    //         if(VertexTable[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+    //             VertexTable[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
+    //         else VertexTable[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
+    //     }
+    //     else if(VertexTable[i-1].Level == 2)
+    //     {
+    //         VertexTable[i-1].BPT.GetLeafEnd()->nextPtr = VertexTable[i].Neighboor;
+    //         if(VertexTable[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+    //             VertexTable[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
+    //         else VertexTable[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
+    //     }
+    //     else
+    //     {
+    //         printf("load graph error-Level?\n");
+    //         exit(-1);
+    //     }
+    // }
+    // if(VertexTable[VertexNum-1].Level==1)
+    //     VertexTable[VertexNum-1].Neighboor.nextLv1Chunk->nextType = -10;
+    // else if(VertexTable[VertexNum-1].Level==2)
+    //     VertexTable[VertexNum-1].Neighboor.nextLeafChunk->nextType = -10;
 }
 
 CBLNode::CBLNode()
@@ -708,22 +794,44 @@ CBLNode::CBLNode()
     return 0;
 }
 
-bool CBList::InsertEdge(VertexID src, AdjUnit NeighboorINFO)
+bool CBList::InsertEdgeOut(VertexID src, AdjUnit NeighboorINFO)
 {
-    uint32_t flag = this->NodeList[src].Insert(NeighboorINFO);
+    uint32_t flag = this->VertexTableOut[src].Insert(NeighboorINFO);
     if(flag == 0) return false;
     if(flag == 2 && src != 0)
     {
-        uint32_t level = this->NodeList[src-1].Level;
+        uint32_t level = this->VertexTableOut[src-1].Level;
         if(level == 1)
         {
-            this->NodeList[src-1].Neighboor.nextLv1Chunk->nextPtr = this->NodeList[src].Neighboor;
-            this->NodeList[src-1].Neighboor.nextLv1Chunk->nextType = LEAFCHUNK_LEVEL;
+            this->VertexTableOut[src-1].Neighboor.nextLv1Chunk->nextPtr = this->VertexTableOut[src].Neighboor;
+            this->VertexTableOut[src-1].Neighboor.nextLv1Chunk->nextType = LEAFCHUNK_LEVEL;
         }
         else if(level == 2)
         {
-            this->NodeList[src-1].BPT.GetLeafEnd()->nextPtr = this->NodeList[src].Neighboor;
-            this->NodeList[src-1].BPT.GetLeafEnd()->nextType = LEAFCHUNK_LEVEL;
+            this->VertexTableOut[src-1].BPT.GetLeafEnd()->nextPtr = this->VertexTableOut[src].Neighboor;
+            this->VertexTableOut[src-1].BPT.GetLeafEnd()->nextType = LEAFCHUNK_LEVEL;
+        }
+    }
+    ++this->EdgeNum;
+    return true;
+}
+
+bool CBList::InsertEdgeIn(VertexID src, AdjUnit NeighboorINFO)
+{
+    uint32_t flag = this->VertexTableIn[src].Insert(NeighboorINFO);
+    if(flag == 0) return false;
+    if(flag == 2 && src != 0)
+    {
+        uint32_t level = this->VertexTableIn[src-1].Level;
+        if(level == 1)
+        {
+            this->VertexTableIn[src-1].Neighboor.nextLv1Chunk->nextPtr = this->VertexTableIn[src].Neighboor;
+            this->VertexTableIn[src-1].Neighboor.nextLv1Chunk->nextType = LEAFCHUNK_LEVEL;
+        }
+        else if(level == 2)
+        {
+            this->VertexTableIn[src-1].BPT.GetLeafEnd()->nextPtr = this->VertexTableIn[src].Neighboor;
+            this->VertexTableIn[src-1].BPT.GetLeafEnd()->nextType = LEAFCHUNK_LEVEL;
         }
     }
     ++this->EdgeNum;
@@ -733,39 +841,40 @@ bool CBList::InsertEdge(VertexID src, AdjUnit NeighboorINFO)
 //Inserts are Edges
 bool CBList::InsertGraphIE(std::string path, uint64_t startline, uint64_t endline)
 {
-    auto EdgeListFromFile = LoadGraphFromFilePart(path, startline, endline);
-    //==============================================================time_start====================
-    auto start = std::chrono::steady_clock::now();
+    printf("Abandon this CTOR for now.\n");
+    // auto EdgeListFromFile = LoadGraphFromFilePart(path, startline, endline);
+    // //==============================================================time_start====================
+    // auto start = std::chrono::steady_clock::now();
 
-    for(auto& edge:EdgeListFromFile)
-        this->InsertEdge(edge.start_point, {edge.end_point, random(10000)});
+    // for(auto& edge:EdgeListFromFile)
+    //     this->InsertEdge(edge.start_vertex, {edge.end_vertex, random(10000)});
 
-    auto end = std::chrono::steady_clock::now();
-    //==============================================================================time_stop===========================
-    std::chrono::duration<double, std::micro> elapsed = end - start; // std::micro 表示以微秒为时间单位
-    printf("Insert time: %fus\n",elapsed.count());
+    // auto end = std::chrono::steady_clock::now();
+    // //==============================================================================time_stop===========================
+    // std::chrono::duration<double, std::micro> elapsed = end - start; // std::micro 表示以微秒为时间单位
+    // printf("Insert time: %fus\n",elapsed.count());
 
-    if(NodeList[NodeNum-1].Level==1)
-        NodeList[NodeNum-1].Neighboor.nextLv1Chunk->nextType = -10;
-    else if(NodeList[NodeNum-1].Level==2)
-        NodeList[NodeNum-1].Neighboor.nextLeafChunk->nextType = -10;
-    return true;
+    // if(VertexTable[VertexNum-1].Level==1)
+    //     VertexTable[VertexNum-1].Neighboor.nextLv1Chunk->nextType = -10;
+    // else if(VertexTable[VertexNum-1].Level==2)
+    //     VertexTable[VertexNum-1].Neighboor.nextLeafChunk->nextType = -10;
+    // return true;
 }
 
 //TODO: judge mode (scan or b+tree) / one LeafNode BinarySearch
-bool CBList::ReadEdge(VertexID src, VertexID dst)
+bool CBList::ReadEdgeOut(VertexID src, VertexID dst)
 {
-    if(this->NodeList[src].Level == 1)
+    if(this->VertexTableOut[src].Level == 1)
     {
-        for(IndexType Nindex = 0; Nindex < NodeList[src].Neighboor.nextLv1Chunk->count; ++Nindex)
+        for(IndexType Nindex = 0; Nindex < VertexTableOut[src].Neighboor.nextLv1Chunk->count; ++Nindex)
         {
-            if(NodeList[src].Neighboor.nextLv1Chunk->NeighboorChunk[Nindex].dest == dst)
+            if(VertexTableOut[src].Neighboor.nextLv1Chunk->NeighboorChunk[Nindex].dest == dst)
                 return true;
         }
     }
     else
     {
-        auto TargetLeaf = this->NodeList[src].BPT.Find(dst);
+        auto TargetLeaf = this->VertexTableOut[src].BPT.Find(dst);
         if(TargetLeaf!=nullptr)
         {
             for(IndexType Nindex = 0; Nindex<TargetLeaf->count; ++Nindex)
@@ -778,22 +887,47 @@ bool CBList::ReadEdge(VertexID src, VertexID dst)
     return false;
 }
 
-std::vector<VertexID> CBList::GetNeighbor(VertexID src)
+bool CBList::ReadEdgeIn(VertexID src, VertexID dst)
 {
-    std::vector<VertexID> NeighboorList(this->NodeList[src].NeighboorCnt, 0);
-    IndexType NLindex = 0;
-    if(this->NodeList[src].Level == 1)
+    if(this->VertexTableIn[src].Level == 1)
     {
-       for(IndexType Nindex = 0; Nindex < NodeList[src].Neighboor.nextLv1Chunk->count; ++Nindex)
+        for(IndexType Nindex = 0; Nindex < VertexTableIn[src].Neighboor.nextLv1Chunk->count; ++Nindex)
         {
-            VertexID dst1 = NodeList[src].Neighboor.nextLv1Chunk->NeighboorChunk[Nindex].dest;
+            if(VertexTableIn[src].Neighboor.nextLv1Chunk->NeighboorChunk[Nindex].dest == dst)
+                return true;
+        }
+    }
+    else
+    {
+        auto TargetLeaf = this->VertexTableIn[src].BPT.Find(dst);
+        if(TargetLeaf!=nullptr)
+        {
+            for(IndexType Nindex = 0; Nindex<TargetLeaf->count; ++Nindex)
+            {
+                if(TargetLeaf->NeighboorChunk[Nindex].dest == dst)
+                    return true;
+            }
+        } 
+    }
+    return false;
+}
+
+std::vector<VertexID> CBList::GetNeighborOut(VertexID src)
+{
+    std::vector<VertexID> NeighboorList(this->VertexTableOut[src].NeighboorCnt, 0);
+    IndexType NLindex = 0;
+    if(this->VertexTableOut[src].Level == 1)
+    {
+       for(IndexType Nindex = 0; Nindex < VertexTableOut[src].Neighboor.nextLv1Chunk->count; ++Nindex)
+        {
+            VertexID dst1 = VertexTableOut[src].Neighboor.nextLv1Chunk->NeighboorChunk[Nindex].dest;
             NeighboorList[NLindex++] = dst1;
         }
     }
     else
     {
-        auto n_ptr = this->NodeList[src].Neighboor.nextLeafChunk;
-        for(IndexType chunkcnt = 0; chunkcnt < this->NodeList[src].ChunkCnt; ++chunkcnt)
+        auto n_ptr = this->VertexTableOut[src].Neighboor.nextLeafChunk;
+        for(IndexType chunkcnt = 0; chunkcnt < this->VertexTableOut[src].ChunkCnt; ++chunkcnt)
         {
             for(IndexType Nindex = 0; Nindex<n_ptr->count; ++Nindex)
             {
@@ -806,16 +940,44 @@ std::vector<VertexID> CBList::GetNeighbor(VertexID src)
     return NeighboorList;
 }
 
-void CBList::AddEdgeBatch(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count)
+std::vector<VertexID> CBList::GetNeighborIn(VertexID src)
+{
+    std::vector<VertexID> NeighboorList(this->VertexTableIn[src].NeighboorCnt, 0);
+    IndexType NLindex = 0;
+    if(this->VertexTableIn[src].Level == 1)
+    {
+       for(IndexType Nindex = 0; Nindex < VertexTableIn[src].Neighboor.nextLv1Chunk->count; ++Nindex)
+        {
+            VertexID dst1 = VertexTableIn[src].Neighboor.nextLv1Chunk->NeighboorChunk[Nindex].dest;
+            NeighboorList[NLindex++] = dst1;
+        }
+    }
+    else
+    {
+        auto n_ptr = this->VertexTableIn[src].Neighboor.nextLeafChunk;
+        for(IndexType chunkcnt = 0; chunkcnt < this->VertexTableIn[src].ChunkCnt; ++chunkcnt)
+        {
+            for(IndexType Nindex = 0; Nindex<n_ptr->count; ++Nindex)
+            {
+                VertexID dst1 = n_ptr->NeighboorChunk[Nindex].dest;
+                NeighboorList[NLindex++] = dst1;
+            }
+            n_ptr = n_ptr->nextPtr.nextLeafChunk;
+        }
+    }
+    return NeighboorList;
+}
+
+void CBList::AddEdgeBatchOut(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count)
 {
     // generate partitions array
     std::vector<uint32_t> parts;
-    VertexID cur_src = EdgeList[0].start_point;
+    VertexID cur_src = EdgeList[0].start_vertex;
     parts.emplace_back(0);
     for (IndexType i = 1; i < edge_count; i++) {
-        if (cur_src != EdgeList[i].start_point) {
+        if (cur_src != EdgeList[i].start_vertex) {
             parts.emplace_back(i);
-            cur_src = EdgeList[i].start_point;
+            cur_src = EdgeList[i].start_vertex;
         }
     }
     parts.emplace_back(edge_count);
@@ -829,13 +991,44 @@ void CBList::AddEdgeBatch(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_cou
         //TODO: 无权图的时候 改一下现在这里的有权图的插入。
         for(IndexType ei = parts[i]; ei < parts[i+1]; ++ei)
         {
-            this->NodeList[EdgeList[ei].start_point].Insert(AdjUnit({EdgeList[ei].end_point, 0}));
+            this->VertexTableOut[EdgeList[ei].start_vertex].Insert(AdjUnit({EdgeList[ei].end_vertex, 0}));
             // this->InsertEdge();
         }
     }
 }
 
 
+void CBList::AddEdgeBatchIn(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count)
+{
+    // generate partitions array
+    std::vector<uint32_t> parts;
+    VertexID cur_src = EdgeList[0].start_vertex;
+    parts.emplace_back(0);
+    for (IndexType i = 1; i < edge_count; i++) {
+        if (cur_src != EdgeList[i].start_vertex) {
+            parts.emplace_back(i);
+            cur_src = EdgeList[i].start_vertex;
+        }
+    }
+    parts.emplace_back(edge_count);
+    //TODO: 总体的threads参数。
+    omp_set_num_threads(32);
+    #pragma omp parallel for
+    for(IndexType i = 0; i < parts.size()-1; ++i)
+    {
+        //TODO: 遍历链在并行时候的问题。
+        //TODO: 有batch 考虑块？
+        //TODO: 无权图的时候 改一下现在这里的有权图的插入。
+        for(IndexType ei = parts[i]; ei < parts[i+1]; ++ei)
+        {
+            this->VertexTableIn[EdgeList[ei].end_vertex].Insert(AdjUnit({EdgeList[ei].start_vertex, 0}));
+            // this->InsertEdge();
+        }
+    }
+}
+
+
+//========================================TODO: Just support outgoing for now.============================
 struct MetaInfo
 {
     int bt_num;
@@ -845,9 +1038,9 @@ struct MetaInfo
     MetaInfo(CBList& graph):bt_num(0),lv1_num(0),bt_record(0),cbl(graph){};
     void getInfo()
     {
-        for(IndexType v = 0; v < this->cbl.NodeNum; ++v)
+        for(IndexType v = 0; v < this->cbl.VertexNum; ++v)
         {
-            if(this->cbl.NodeList[v].NeighboorCnt > LV1CHUNK_NCNT)
+            if(this->cbl.VertexTableOut[v].NeighboorCnt > LV1CHUNK_NCNT)
             {
                 ++bt_num;
                 bt_record.emplace_back(v);
@@ -856,16 +1049,16 @@ struct MetaInfo
                 ++lv1_num;
         }            
         std::cout << bt_num << "  " << lv1_num << std::endl;
-        std::cout << (double)(bt_num)/this->cbl.NodeNum << "-" << (double)(lv1_num)/this->cbl.NodeNum << std::endl;
+        std::cout << (double)(bt_num)/this->cbl.VertexNum << "-" << (double)(lv1_num)/this->cbl.VertexNum << std::endl;
     }
 };
 
 CBList::EdgeIterator::EdgeIterator(const CBList* Graph, VertexID src):v(src),CurrentPos(0),AccessEdgeCnt(0),alive(true)
 {
-    level = Graph->NodeList[src].Level;
-    NeighboorCnt = Graph->NodeList[src].NeighboorCnt;
-    if(level == 1) CurrentPtr.nextLv1Chunk = Graph->NodeList[src].Neighboor.nextLv1Chunk;
-    else CurrentPtr.nextLeafChunk = Graph->NodeList[src].Neighboor.nextLeafChunk;
+    level = Graph->VertexTableOut[src].Level;
+    NeighboorCnt = Graph->VertexTableOut[src].NeighboorCnt;
+    if(level == 1) CurrentPtr.nextLv1Chunk = Graph->VertexTableOut[src].Neighboor.nextLv1Chunk;
+    else CurrentPtr.nextLeafChunk = Graph->VertexTableOut[src].Neighboor.nextLeafChunk;
 }
 
 CBList::EdgeIterator CBList::EdgeIterator::operator++()
@@ -904,4 +1097,36 @@ AdjUnit CBList::EdgeIterator::GetEdegInfo()
     }
 }
 
-}//namespace CoroGraph
+void CBList::ConnectGTChain(nextPointer& GTChain, CBLNode*& VertexTable)
+{
+    GTChain = VertexTable[0].Neighboor;
+    #pragma omp parallel for num_threads(omp_get_max_threads()) 
+    for(VertexID i=1;i<VertexNum;++i)
+    {
+        if(VertexTable[i-1].Level == 1)
+        {             
+            VertexTable[i-1].Neighboor.nextLv1Chunk->nextPtr = VertexTable[i].Neighboor;
+            if(VertexTable[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+                VertexTable[i-1].Neighboor.nextLv1Chunk->nextType = 0 - CHUNK_LEVEL;
+            else VertexTable[i-1].Neighboor.nextLv1Chunk->nextType = 0 - LEAFCHUNK_LEVEL;
+        }
+        else if(VertexTable[i-1].Level == 2)
+        {
+            VertexTable[i-1].BPT.GetLeafEnd()->nextPtr = VertexTable[i].Neighboor;
+            if(VertexTable[i].NeighboorCnt <= LV1CHUNK_NCNT) 
+                VertexTable[i-1].BPT.GetLeafEnd()->nextType = 0 - CHUNK_LEVEL;
+            else VertexTable[i-1].BPT.GetLeafEnd()->nextType = 0 - LEAFCHUNK_LEVEL;
+        }
+        else
+        {
+            printf("load graph error-Level?\n");
+            exit(-1);
+        }
+    }
+    if(VertexTable[VertexNum-1].Level==1)
+        VertexTable[VertexNum-1].Neighboor.nextLv1Chunk->nextType = -10;
+    else if(VertexTable[VertexNum-1].Level==2)
+        VertexTable[VertexNum-1].Neighboor.nextLeafChunk->nextType = -10;
+}
+
+}//namespace GastCoCo

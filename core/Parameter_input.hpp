@@ -1,6 +1,16 @@
 #pragma once
+#include <iostream>
 #include <gflags/gflags.h>
 #include "omp.h"
+
+void PrintLOGO()
+{
+     std::cout << "   ______           __  ______      ______" << std::endl;
+     std::cout << "  / ____/___ ______/ /_/ ____/___  / ____/___" << std::endl;
+     std::cout << " / / __/ __ `/ ___/ __/ /   / __ \\/ /   / __ \\" << std::endl;
+     std::cout << "/ /_/ / /_/ (__  ) /_/ /___/ /_/ / /___/ /_/ /" << std::endl;
+     std::cout << "\\____/\\__,_/____/\\__/\\____/\\____/\\____/\\____/" << std::endl;                                 
+}
 
 static bool ValidateApp(const char* flagname, const std::string& value)
 {
@@ -57,6 +67,7 @@ DEFINE_string(data, "", "Graph dataset information path.");
 DEFINE_int32(t, omp_get_max_threads(), "Thread count, default = Number of logical CPU threads.");
 DEFINE_int32(c, 2, "Coroutine count.");
 DEFINE_int32(s, 0, "Source in some apps.");
+DEFINE_int32(i, 10, "Iteration in some apps.");
 DEFINE_int32(bs, 10000, "Batch size in batch update.");
 DEFINE_bool(em, false, "Execute mode: true = Sequential, false = Interleaved.");
 DEFINE_bool(cm, false, "Compute mode: true = pull/push, false = pull+push.");
@@ -67,3 +78,4 @@ static const bool t_dummy = google::RegisterFlagValidator(&FLAGS_t, &ValidatePos
 static const bool c_dummy = google::RegisterFlagValidator(&FLAGS_c, &ValidatePositiveNumber);
 static const bool s_dummy = google::RegisterFlagValidator(&FLAGS_s, &ValidatePositiveNumberAndZero);
 static const bool bs_dummy = google::RegisterFlagValidator(&FLAGS_bs, &ValidatePositiveNumber);
+static const bool i_dummy = google::RegisterFlagValidator(&FLAGS_i, &ValidatePositiveNumber);

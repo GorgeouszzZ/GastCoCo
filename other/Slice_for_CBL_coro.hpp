@@ -2,18 +2,20 @@
 #include "../CBList/CBList.hpp"
 #include <vector>
 
-[[nodiscard("SliceForCoroResult")]]std::vector<uint32_t> SliceForCoro(const CoroGraph::CBList& cbl, uint32_t coro_num)
+namespace GastCoCo
 {
-    std::vector<uint32_t> ChunkNumRecord(cbl.NodeNum+1, 0);
-    for(VertexID node=0; node<cbl.NodeNum; ++node)
+[[nodiscard("SliceForCoroResult")]]std::vector<uint32_t> SliceForCoro(const CBList& cbl, uint32_t coro_num)
+{
+    std::vector<uint32_t> ChunkNumRecord(cbl.VertexNum+1, 0);
+    for(VertexID node=0; node<cbl.VertexNum; ++node)
     {
-        ChunkNumRecord[node+1] = ChunkNumRecord[node] + cbl.NodeList[node].ChunkCnt;
+        ChunkNumRecord[node+1] = ChunkNumRecord[node] + cbl.VertexTableOut[node].ChunkCnt;
     }
-    uint32_t chunk_num_for_coro = ChunkNumRecord[cbl.NodeNum]/coro_num;
+    uint32_t chunk_num_for_coro = ChunkNumRecord[cbl.VertexNum]/coro_num;
     uint32_t chunk_sum = 0;
     std::vector<uint32_t> SliceResult(coro_num+1, 0);
     uint32_t tid = 1;
-    for(uint32_t i=1; i<cbl.NodeNum+1; ++i)
+    for(uint32_t i=1; i<cbl.VertexNum+1; ++i)
     {
         if(ChunkNumRecord[i]>=chunk_sum + chunk_num_for_coro)
         {
@@ -33,7 +35,7 @@
         }
         if(tid == coro_num)
         {
-            SliceResult[tid] = cbl.NodeNum;
+            SliceResult[tid] = cbl.VertexNum;
             break;
         }
     }
@@ -42,18 +44,18 @@
     return SliceResult;
 }
 
-[[nodiscard("SliceForCoroDynamicResult")]]std::vector<uint32_t> SliceForCoroDynamic(const CoroGraph::CBList& cbl, uint32_t coro_num)
+[[nodiscard("SliceForCoroDynamicResult")]]std::vector<uint32_t> SliceForCoroDynamic(const CBList& cbl, uint32_t coro_num)
 {
-    std::vector<uint32_t> ChunkNumRecord(cbl.NodeNum+1, 0);
-    for(VertexID node=0; node<cbl.NodeNum; ++node)
+    std::vector<uint32_t> ChunkNumRecord(cbl.VertexNum+1, 0);
+    for(VertexID node=0; node<cbl.VertexNum; ++node)
     {
-        ChunkNumRecord[node+1] = ChunkNumRecord[node] + cbl.NodeList[node].ChunkCnt;
+        ChunkNumRecord[node+1] = ChunkNumRecord[node] + cbl.VertexTableOut[node].ChunkCnt;
     }
-    uint32_t chunk_num_for_coro = ChunkNumRecord[cbl.NodeNum]/coro_num;
+    uint32_t chunk_num_for_coro = ChunkNumRecord[cbl.VertexNum]/coro_num;
     uint32_t chunk_sum = 0;
     std::vector<uint32_t> SliceResult(coro_num+1, 0);
     uint32_t tid = 1;
-    for(uint32_t i=1; i<cbl.NodeNum+1; ++i)
+    for(uint32_t i=1; i<cbl.VertexNum+1; ++i)
     {
         if(ChunkNumRecord[i]>=chunk_sum + chunk_num_for_coro)
         {
@@ -75,15 +77,15 @@
         }
         if(tid == coro_num)
         {
-            SliceResult[tid] = cbl.NodeNum;
+            SliceResult[tid] = cbl.VertexNum;
             // std::cout<<"i:"<<i<<" tid:"<<tid<<"-"<<SliceResult[tid]<<std::endl;
             break;
         }
-        else if(i == cbl.NodeNum)
+        else if(i == cbl.VertexNum)
         {
             // std::cout<<"i:"<<i<<" tid:"<<tid<<"-"<<SliceResult[tid]<<std::endl;
             for(;tid<=coro_num;++tid)
-                SliceResult[tid] = cbl.NodeNum;
+                SliceResult[tid] = cbl.VertexNum;
         }
     }
     // for(auto &i : SliceResult)
@@ -142,32 +144,32 @@
     return Result;
 }
 
-bool slice_for_coro(int* &result, int coro_num, CoroGraph::CBList cbl)
+bool slice_for_coro(int* &result, int coro_num, CBList cbl)
 {
     result = new int [coro_num + 1];
     int* silce_num = new int [coro_num];
     int chunk_sum = 0;
-    for(int i=0;i<cbl.NodeNum;i++)
+    for(int i=0;i<cbl.VertexNum;i++)
     {
-        chunk_sum+=cbl.NodeList[i].ChunkCnt;
+        chunk_sum+=cbl.VertexTableOut[i].ChunkCnt;
     }
     int delta = chunk_sum/coro_num;
     result[0] = 0;
-    result[coro_num] = cbl.NodeNum;
+    result[coro_num] = cbl.VertexNum;
     int tmp = 0;
     int coro_cnt = 1;
-    for(int i=0;i<cbl.NodeNum;i++)
+    for(int i=0;i<cbl.VertexNum;i++)
     {
-        tmp+=cbl.NodeList[i].ChunkCnt;
+        tmp+=cbl.VertexTableOut[i].ChunkCnt;
         if(tmp > delta)
         {
             result[coro_cnt] = i;
-            silce_num[coro_cnt - 1] = tmp - cbl.NodeList[i].ChunkCnt;
+            silce_num[coro_cnt - 1] = tmp - cbl.VertexTableOut[i].ChunkCnt;
             coro_cnt++;
-            tmp = cbl.NodeList[i].ChunkCnt;
+            tmp = cbl.VertexTableOut[i].ChunkCnt;
         }
     }
-    result[coro_num] = cbl.NodeNum;
+    result[coro_num] = cbl.VertexNum;
     for(int i=0;i<coro_num+1;i++)
     {
         printf("%d ",result[i]);
@@ -179,21 +181,21 @@ bool slice_for_coro(int* &result, int coro_num, CoroGraph::CBList cbl)
 
 int scoreLv1 = 1;
 int scoreLeaf = 4;
-[[nodiscard("SliceForCoroResultWithScore")]]std::vector<int32_t> SliceForCoroWithScore(const CoroGraph::CBList& cbl, uint32_t coro_num)
+[[nodiscard("SliceForCoroResultWithScore")]]std::vector<int32_t> SliceForCoroWithScore(const CBList& cbl, uint32_t coro_num)
 {
-    std::vector<uint32_t> ChunkScoreRecord(cbl.NodeNum+1, 0);
-    for(VertexID node=0; node<cbl.NodeNum; ++node)
+    std::vector<uint32_t> ChunkScoreRecord(cbl.VertexNum+1, 0);
+    for(VertexID node=0; node<cbl.VertexNum; ++node)
     {
-        if(cbl.NodeList[node].BPT.Root == nullptr)
-            ChunkScoreRecord[node+1] = (ChunkScoreRecord[node] + cbl.NodeList[node].ChunkCnt * scoreLv1);
+        if(cbl.VertexTableOut[node].BPT.Root == nullptr)
+            ChunkScoreRecord[node+1] = (ChunkScoreRecord[node] + cbl.VertexTableOut[node].ChunkCnt * scoreLv1);
         else
-            ChunkScoreRecord[node+1] = (ChunkScoreRecord[node] + cbl.NodeList[node].ChunkCnt * scoreLeaf);
+            ChunkScoreRecord[node+1] = (ChunkScoreRecord[node] + cbl.VertexTableOut[node].ChunkCnt * scoreLeaf);
     }
-    uint32_t Score_for_coro = ChunkScoreRecord[cbl.NodeNum]/coro_num;
+    uint32_t Score_for_coro = ChunkScoreRecord[cbl.VertexNum]/coro_num;
     uint32_t score_now = 0;
     std::vector<int32_t> SliceResult(coro_num+1, 0);
     uint32_t tid = 1;
-    for(uint32_t i=1; i<cbl.NodeNum+1; ++i)
+    for(uint32_t i=1; i<cbl.VertexNum+1; ++i)
     {
         if(ChunkScoreRecord[i]>=score_now + Score_for_coro)
         {
@@ -215,15 +217,15 @@ int scoreLeaf = 4;
         }
         if(tid == coro_num)
         {
-            SliceResult[tid] = cbl.NodeNum;
+            SliceResult[tid] = cbl.VertexNum;
             std::cout<<"i:"<<i<<" tid:"<<tid<<"-"<<SliceResult[tid]<<std::endl;
             break;
         }
-        else if(i == cbl.NodeNum)
+        else if(i == cbl.VertexNum)
         {
             std::cout<<"i:"<<i<<" tid:"<<tid<<"-"<<SliceResult[tid]<<std::endl;
             for(;tid<=coro_num;++tid)
-                SliceResult[tid] = cbl.NodeNum;
+                SliceResult[tid] = cbl.VertexNum;
         }
     }
     // for(auto &i : SliceResult)
@@ -232,3 +234,4 @@ int scoreLeaf = 4;
 }
 
 
+}

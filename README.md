@@ -18,15 +18,18 @@ Co-Design for Dynamic Graph Processing)
 ```shell
 cd GastCoCo
 mkdir build && cd build
-cmake ..
+cmake .. --DCMAKE_BUILD_TYPE=Release
 make
 ```
 
 ## 3. How to Run
 ```shell
+# old version
 ./toolkit/coSSSP [data] [datainfo] [thread] [coro] [source]
-./toolkit/coPageRank [data] [datainfo] [thread] [coro]
+./toolkit/coPageRank [data] [datainfo] [thread] [coro] [iter]
 ./toolkit/coBatchInsert [data] [datainfo] [thread] [coro] [batchsize]
+# rebuilding for new
+./gastcoco --app=pagerank --t=[thread] --c=[coro] --i=[iter] --data=[datainfo] --cm
 ```
 
 ## 4. Dataset
@@ -42,4 +45,10 @@ make
 
 [datainfo]
 5 3
+
+#rebuilding for new
+[datainfo]
+5 3
+./data
+1
 ```
