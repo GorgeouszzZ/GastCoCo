@@ -71,6 +71,8 @@ DEFINE_int32(i, 10, "Iteration in some apps.");
 DEFINE_int32(bs, 10000, "Batch size in batch update.");
 DEFINE_bool(em, false, "Execute mode: true = Sequential, false = Interleaved.");
 DEFINE_bool(cm, false, "Compute mode: true = pull/push, false = pull+push.");
+DEFINE_bool(pm, false, "Prefetch mode: true = All Soft, false = Hybrid prefetch.");
+DEFINE_bool(o, false, "Dataset origin order: true = load graph in order, false = loading graph out of order(enable parallel).");
 
 static const bool app_dummy = google::RegisterFlagValidator(&FLAGS_app, &ValidateApp);
 static const bool data_dummy = google::RegisterFlagValidator(&FLAGS_data, &ValidatePath);

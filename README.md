@@ -18,7 +18,9 @@ Co-Design for Dynamic Graph Processing)
 ```shell
 cd GastCoCo
 mkdir build && cd build
-cmake .. --DCMAKE_BUILD_TYPE=Release
+# CM is used to specify that the chunk size in CBList is an integer multiple of the cache line size.
+# If set to 0 or left unspecified, the default setting will be used.
+cmake --DCM=[0/1/2/4/8/16] .. --DCMAKE_BUILD_TYPE=Release
 make
 ```
 
@@ -30,6 +32,10 @@ make
 ./toolkit/coBatchInsert [data] [datainfo] [thread] [coro] [batchsize]
 # rebuilding for new
 ./gastcoco --app=pagerank --t=[thread] --c=[coro] --i=[iter] --data=[datainfo] --cm
+# parameter flag introduction
+./gastcoco --help
+# version
+./gastcoco --version
 ```
 
 ## 4. Dataset

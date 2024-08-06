@@ -9,9 +9,14 @@ project(GastCoCo)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DDEBUG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -rdynamic")
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -rdynamic -fcoroutines -fno-exceptions -fopenmp -O3 -DLOGO")
+if(DEFINED CM)
+    add_definitions(-DCM=${CM})
+endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines -fno-exceptions -fopenmp -O3 -DLOGO")
 set(LINK_FLAGS "-lnuma")
 link_libraries(${LINK_FLAGS})
 
