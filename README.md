@@ -1,6 +1,6 @@
-# GastCoCo v1.0
+# <div align=center> GastCoCo v1.0 Building... </div>
 <!-- ![GastCoCo](GastCoCo.webp) -->
-<div align=left> <img src="./others/GastCoCo.webp" width = 30%/> </div>
+<div align=center> <img src="./others/GastCoCo.webp" width = 50%/> </div>
 
 ## 1. Introduction
 This repo contains all the source code to build GastCoCo.
