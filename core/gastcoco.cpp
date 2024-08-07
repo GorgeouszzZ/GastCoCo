@@ -8,7 +8,7 @@ int main(int argc, char ** argv)
     #endif
     google::SetVersionString("1.0");
     gflags::ParseCommandLineFlags(&argc, &argv, true);
-    cout << CACHE_LINE_MULT << "!" << endl;
+    
     if(FLAGS_app == "pagerank" || FLAGS_app == "pr")
     {
         if(FLAGS_cm == false)
