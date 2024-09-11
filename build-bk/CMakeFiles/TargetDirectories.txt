@@ -1,5 +1,0 @@
-/root/lihongfu/GastCoCo/build/CMakeFiles/edit_cache.dir
-/root/lihongfu/GastCoCo/build/CMakeFiles/rebuild_cache.dir
-/root/lihongfu/GastCoCo/build/CMakeFiles/coBatchInsert.dir
-/root/lihongfu/GastCoCo/build/CMakeFiles/coSSSP.dir
-/root/lihongfu/GastCoCo/build/CMakeFiles/coPageRank.dir

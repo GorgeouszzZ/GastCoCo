@@ -1,1 +1,0 @@
-/usr/bin/c++   -g -rdynamic -std=c++20 -fcoroutines -fno-exceptions -fopenmp -O3  -rdynamic CMakeFiles/parallel_batch_coInsert.dir/workload/parallel_batch_coInsert.cpp.o  -o ../toolkit/parallel_batch_coInsert  -lnuma 
