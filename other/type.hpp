@@ -14,12 +14,14 @@ using WeightType = uint32_t;
 #define VertexSize 32 // sizeof(VertexID)
 #define WeightSize 32 // sizeof(WeightType)
 
-enum ThreadStatus {
+enum ThreadStatus
+{
   WORKING,
   STEALING
 };
 
-struct ThreadState {
+struct ThreadState 
+{
   VertexID curr;
   VertexID end;
   ThreadStatus status;

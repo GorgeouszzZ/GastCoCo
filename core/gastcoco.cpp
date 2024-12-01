@@ -1,6 +1,7 @@
 #include "Parameter_input.hpp"
 #include "../CBList/CBList.hpp"
 #include "../app/copagerank-pull.hpp"
+
 int main(int argc, char ** argv)
 {
     #ifdef LOGO
@@ -13,12 +14,13 @@ int main(int argc, char ** argv)
     {
         if(FLAGS_cm == false)
         {
-            GastCoCo::CBList graph(FLAGS_data, GastCoCo::Mixed, FLAGS_o);
-            pagerank(graph, FLAGS_t, FLAGS_c, FLAGS_i);
+            // GastCoCo::CBList graph(FLAGS_data, GastCoCo::ComputeMode::Mixed, FLAGS_o);
+            // pagerank(graph, FLAGS_t, FLAGS_c, FLAGS_i);
         }
         else
         {
-            GastCoCo::CBList graph(FLAGS_data, GastCoCo::Push, FLAGS_o);
+            // use pull only
+            GastCoCo::CBList graph(FLAGS_data, GastCoCo::ComputeMode::Pull, FLAGS_o);
             pagerank(graph, FLAGS_t, FLAGS_c, FLAGS_i);
         }
     }

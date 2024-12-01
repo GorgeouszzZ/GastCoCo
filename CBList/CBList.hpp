@@ -20,7 +20,8 @@
 namespace GastCoCo
 {
 
-enum ComputeMode {
+enum class ComputeMode : int8_t
+{
     Pull,    
     Push,  
     Mixed    
@@ -164,7 +165,7 @@ public:
     CBList(std::string infopath, ComputeMode cm, bool load_graph_in_order);
     CBList(VertexID Node, EdgeID Edge, std::string path);
     CBList(VertexID Node, EdgeID Edge, std::string path, bool incoming);
-    CBList(VertexID Node, EdgeID Edge, std::string path, int mode);
+    CBList(VertexID Node, EdgeID Edge, std::string path, ComputeMode mode);
     CBList(VertexID Node, EdgeID Edge, std::string path, EdgeID all_edge_num, std::vector<Gedge>& RemainEdgeList);
     bool InsertEdgeOut(VertexID src, AdjUnit NeighboorINFO);
     bool InsertEdgeIn(VertexID src, AdjUnit NeighboorINFO);
@@ -471,116 +472,114 @@ LeafChunk* BplusTree::GetLeafEnd()
 }
 CBList::CBList(std::string infopath, ComputeMode cm, bool load_graph_in_order)
 {
-    if(cm == Pull || cm == Push || cm == Mixed)
-    {
-        auto [v, e, EdgeListFromFile] = LoadGraphProxy(infopath);
-        this->writelockOut = std::vector<std::mutex>(v);
-        this->writelockIn = std::vector<std::mutex>(v);
-        this->vertex_lock = std::vector<std::mutex>(v);
-        this->EdgeNum = e;
-        this->VertexNum = v;
-        #ifdef DEBUG
-            std::cout << "file_content_size="<< EdgeListFromFile.size() << std::endl;
-        #endif
-        if(cm == Pull)
-        {
-            this->VertexTableIn = new CBLNode[VertexNum];
-            auto Lv1ClistIn = new Lv1Chunk[VertexNum];
-            this->VertexTableOut = nullptr;
-            #pragma omp parallel for num_threads(omp_get_max_threads()) 
-            for(IndexType v_i=0; v_i<VertexNum; ++v_i)
-                this->VertexTableIn[v_i].Neighboor.nextLv1Chunk = Lv1ClistIn + v_i;
-            #ifdef DEBUG
-                std::cout << "load incomingCBList...\n";
-            #endif
-            if(load_graph_in_order)
-            {
-                for(auto& edge:EdgeListFromFile)
-                    this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(omp_get_max_threads())
-                for(auto& edge:EdgeListFromFile)
-                {
-                    writelockIn[edge.end_vertex].lock();
-                    this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
-                    writelockIn[edge.end_vertex].unlock();
-                }
-            }
-        }
-        else if(cm == Push)
-        {
-            this->VertexTableOut = new CBLNode[VertexNum];
-            auto Lv1ClistOut = new Lv1Chunk[VertexNum];
-            this->VertexTableIn = nullptr;
-            #pragma omp parallel for num_threads(omp_get_max_threads()) 
-            for(IndexType v_i=0; v_i<VertexNum; ++v_i)
-                this->VertexTableOut[v_i].Neighboor.nextLv1Chunk = Lv1ClistOut + v_i;
-            #ifdef DEBUG
-                std::cout << "load outgoingCBList...\n";
-            #endif
-            if(load_graph_in_order)
-            {
-                for(auto& edge:EdgeListFromFile)
-                    this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(omp_get_max_threads())
-                for(auto& edge:EdgeListFromFile)
-                {
-                    writelockOut[edge.start_vertex].lock();
-                    this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
-                    writelockOut[edge.start_vertex].unlock();
-                }
-            }
-        }
-        else
-        {
-            this->VertexTableOut = new CBLNode[VertexNum];
-            this->VertexTableIn = new CBLNode[VertexNum];
-            Lv1Chunk* Lv1ClistOut = new Lv1Chunk[VertexNum];
-            Lv1Chunk* Lv1ClistIn = new Lv1Chunk[VertexNum];
-            
-            #pragma omp parallel for num_threads(omp_get_max_threads()) 
-            for(IndexType v_i=0; v_i<VertexNum; ++v_i)
-            {    
-                this->VertexTableOut[v_i].Neighboor.nextLv1Chunk = Lv1ClistOut + v_i;
-                this->VertexTableIn[v_i].Neighboor.nextLv1Chunk = Lv1ClistIn + v_i;
-            }
-            if(load_graph_in_order)
-            {
-                for(auto& edge:EdgeListFromFile)
-                {
-                    this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
-                    this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(omp_get_max_threads()) 
-                for(auto& edge:EdgeListFromFile)
-                {
-                    std::scoped_lock double_lock(writelockOut[edge.start_vertex], writelockIn[edge.end_vertex]);
-                    this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
-                    this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
-                }
-            }
-        }
-
-        //assert(max_ == VertexNum - 1);
-        //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
-        if(cm == Pull || cm == Mixed)
-            ConnectGTChain(this->GTChainIn, this->VertexTableIn);
-        if(cm == Push || cm == Mixed)
-            ConnectGTChain(this->GTChainOut, this->VertexTableOut);
-    }
-    else
+    if(cm != ComputeMode::Pull && cm != ComputeMode::Push && cm != ComputeMode::Mixed)
     {
         printf("mode error!\n");
         exit(-1);
     }
+
+    auto [v, e, EdgeListFromFile] = LoadGraphProxy(infopath);
+    this->writelockOut = std::vector<std::mutex>(v);
+    this->writelockIn = std::vector<std::mutex>(v);
+    this->vertex_lock = std::vector<std::mutex>(v);
+    this->EdgeNum = e;
+    this->VertexNum = v;
+    #ifdef DEBUG
+        std::cout << "file content size="<< EdgeListFromFile.size() << std::endl;
+    #endif
+    if(cm == ComputeMode::Pull)
+    {
+        this->VertexTableIn = new CBLNode[VertexNum];
+        auto Lv1ClistIn = new Lv1Chunk[VertexNum];
+        this->VertexTableOut = nullptr;
+        #pragma omp parallel for num_threads(omp_get_max_threads()) 
+        for(IndexType v_i=0; v_i<VertexNum; ++v_i)
+            this->VertexTableIn[v_i].Neighboor.nextLv1Chunk = Lv1ClistIn + v_i;
+        #ifdef DEBUG
+            std::cout << "load incomingCBList...\n";
+        #endif
+        if(load_graph_in_order)
+        {
+            for(auto& edge:EdgeListFromFile)
+                this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(omp_get_max_threads())
+            for(auto& edge:EdgeListFromFile)
+            {
+                writelockIn[edge.end_vertex].lock();
+                this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
+                writelockIn[edge.end_vertex].unlock();
+            }
+        }
+    }
+    else if(cm == ComputeMode::Push)
+    {
+        this->VertexTableOut = new CBLNode[VertexNum];
+        auto Lv1ClistOut = new Lv1Chunk[VertexNum];
+        this->VertexTableIn = nullptr;
+        #pragma omp parallel for num_threads(omp_get_max_threads()) 
+        for(IndexType v_i=0; v_i<VertexNum; ++v_i)
+            this->VertexTableOut[v_i].Neighboor.nextLv1Chunk = Lv1ClistOut + v_i;
+        #ifdef DEBUG
+            std::cout << "load outgoingCBList...\n";
+        #endif
+        if(load_graph_in_order)
+        {
+            for(auto& edge:EdgeListFromFile)
+                this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(omp_get_max_threads())
+            for(auto& edge:EdgeListFromFile)
+            {
+                writelockOut[edge.start_vertex].lock();
+                this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
+                writelockOut[edge.start_vertex].unlock();
+            }
+        }
+    }
+    else
+    {
+        this->VertexTableOut = new CBLNode[VertexNum];
+        this->VertexTableIn = new CBLNode[VertexNum];
+        Lv1Chunk* Lv1ClistOut = new Lv1Chunk[VertexNum];
+        Lv1Chunk* Lv1ClistIn = new Lv1Chunk[VertexNum];
+        
+        #pragma omp parallel for num_threads(omp_get_max_threads()) 
+        for(IndexType v_i=0; v_i<VertexNum; ++v_i)
+        {    
+            this->VertexTableOut[v_i].Neighboor.nextLv1Chunk = Lv1ClistOut + v_i;
+            this->VertexTableIn[v_i].Neighboor.nextLv1Chunk = Lv1ClistIn + v_i;
+        }
+        if(load_graph_in_order)
+        {
+            for(auto& edge:EdgeListFromFile)
+            {
+                this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
+                this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(omp_get_max_threads()) 
+            for(auto& edge:EdgeListFromFile)
+            {
+                std::scoped_lock double_lock(writelockOut[edge.start_vertex], writelockIn[edge.end_vertex]);
+                this->VertexTableOut[edge.start_vertex].Insert({edge.end_vertex, edge.value});
+                this->VertexTableIn[edge.end_vertex].Insert({edge.start_vertex, edge.value});
+            }
+        }
+    }
+
+    //assert(max_ == VertexNum - 1);
+    //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
+    if(cm == ComputeMode::Pull || cm == ComputeMode::Mixed)
+        ConnectGTChain(this->GTChainIn, this->VertexTableIn);
+    if(cm == ComputeMode::Push || cm == ComputeMode::Mixed)
+        ConnectGTChain(this->GTChainOut, this->VertexTableOut);
 }
 //TODO:unsorted ---- insert method
 CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path):writelockOut(VertexNum), writelockIn(VertexNum), vertex_lock(VertexNum)
@@ -677,7 +676,7 @@ CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path, bool incomi
         VertexTableIn[VertexNum-1].Neighboor.nextLeafChunk->nextType = -10;
 }
 
-CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path, int mode):writelockOut(VertexNum), writelockIn(VertexNum), vertex_lock(VertexNum)
+CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path, ComputeMode mode):writelockOut(VertexNum), writelockIn(VertexNum), vertex_lock(VertexNum)
 {
     printf("Abandon this CTOR for now.\n");
     // if(mode >= 1 && mode <= 2)

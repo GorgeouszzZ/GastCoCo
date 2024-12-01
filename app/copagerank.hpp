@@ -19,24 +19,24 @@ double d = 0.85;
 std::mutex mtx;
 
 template<typename ptrType>
-void compute_pr_OPT(ptrType TMPptr, double tmpPR, vector<double>& node_state_new)
+void compute_pr_OPT(ptrType TMPptr, double tmpPR, vector<double>& vertex_state_new)
 {
     for(int i=0;i<TMPptr->count;i++)
     { 
         double delta = tmpPR * d;
-        write_add(&node_state_new[TMPptr->NeighboorChunk[i].dest], delta);
+        write_add(&vertex_state_new[TMPptr->NeighboorChunk[i].dest], delta);
     }
 }
 
-generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::VertexID& left,const GastCoCo::VertexID& right,vector<double>& node_state_old, vector<double>& node_state_new, bool pre_flag)
+generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::VertexID& left,const GastCoCo::VertexID& right,vector<double>& vertex_state_old, vector<double>& vertex_state_new, bool pre_flag)
 {
-    GastCoCo::VertexID now_node = left;
+    GastCoCo::VertexID now_vertex = left;
     int nextFlag = 0;
     if(cbl.VertexTableOut[left].Level == 1) nextFlag = CHUNK_LEVEL;
     else if(cbl.VertexTableOut[left].Level == 2) nextFlag = LEAFCHUNK_LEVEL;
     auto nextPtr_tmp = &(cbl.VertexTableOut[left].Neighboor);
     int outDegree = cbl.VertexTableOut[left].NeighboorCnt;
-    double tmpPR = node_state_old[left] / outDegree;
+    double tmpPR = vertex_state_old[left] / outDegree;
 
     // //-----profiling-----
     // double Lv1time = 0.0;
@@ -47,7 +47,7 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::Ve
     // auto startall = std::chrono::steady_clock::now();
     // //-----profiling-----
 
-    while(now_node != right)
+    while(now_vertex != right)
     {         
         if(nextFlag%2 != 0)
         {
@@ -59,14 +59,14 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::Ve
 
             GastCoCo::prefetch_Chunk(nextPtr_tmp->nextLv1Chunk);
             co_await suspend_always{};
-            compute_pr_OPT(nextPtr_tmp->nextLv1Chunk, tmpPR, node_state_new);
+            compute_pr_OPT(nextPtr_tmp->nextLv1Chunk, tmpPR, vertex_state_new);
             // for(int i=0;i<nextPtr_tmp->nextLv1Chunk->count;i++)
             // { 
             //     double delta = tmpPR * d;
-            //     write_add(&node_state_new[nextPtr_tmp->nextLv1Chunk->NeighboorChunk[i].dest], delta);
+            //     write_add(&vertex_state_new[nextPtr_tmp->nextLv1Chunk->NeighboorChunk[i].dest], delta);
             //     // if(nextPtr_tmp->nextLv1Chunk->NeighboorChunk[i].dest == 0)
             //     // {
-            //     //     printf("pr:%f + (%d)->tmp:%f   ",node_state_new[0],now_node,tmpPR);
+            //     //     printf("pr:%f + (%d)->tmp:%f   ",vertex_state_new[0],now_vertex,tmpPR);
             //     //     printf("from %d-%d\n",left,right);
             //     // }
             // }
@@ -95,15 +95,15 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::Ve
             // auto startLeaf = std::chrono::steady_clock::now();
             // //-----profiling-----
 
-            compute_pr_OPT(nextPtr_tmp->nextLeafChunk, tmpPR, node_state_new);
+            compute_pr_OPT(nextPtr_tmp->nextLeafChunk, tmpPR, vertex_state_new);
 
             // for(int i=0;i<nextPtr_tmp->nextLeafChunk->count;i++)
             // { 
             //     double delta = tmpPR * d;
-            //     write_add(&node_state_new[nextPtr_tmp->nextLeafChunk->NeighboorChunk[i].dest], delta);
+            //     write_add(&vertex_state_new[nextPtr_tmp->nextLeafChunk->NeighboorChunk[i].dest], delta);
             //     // if(nextPtr_tmp->nextLeafChunk->NeighboorChunk[i].dest == 0)
             //     // {
-            //     //     printf("pr:%f + (%d)->tmp:%f",node_state_new[0],now_node,tmpPR);
+            //     //     printf("pr:%f + (%d)->tmp:%f",vertex_state_new[0],now_vertex,tmpPR);
             //     //     printf("from %d-%d\n",left,right);
             //     // }
             // }
@@ -121,9 +121,9 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::Ve
         }
         if(nextFlag<0)
         {
-            ++now_node;
-            outDegree = cbl.VertexTableOut[now_node].NeighboorCnt;
-            tmpPR = node_state_old[now_node] / outDegree;
+            ++now_vertex;
+            outDegree = cbl.VertexTableOut[now_vertex].NeighboorCnt;
+            tmpPR = vertex_state_old[now_vertex] / outDegree;
         }
     }
     // if(false) co_await suspend_always{};

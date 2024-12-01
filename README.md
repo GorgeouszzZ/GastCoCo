@@ -5,7 +5,7 @@
 ## 1. Introduction
 This repo contains all the source code to build GastCoCo.
 (GastCoCo: Graph Storage and Coroutine-Based Prefetch
-Co-Design for Dynamic Graph Processing)
+Co-Design for Dynamic Graph Processing [VLDB2025])
 
 ## 2. Installation
 ### 2.1 Software Requirements
