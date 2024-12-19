@@ -9,57 +9,57 @@ void PrintLOGO()
      std::cout << "  / ____/___ ______/ /_/ ____/___  / ____/___" << std::endl;
      std::cout << " / / __/ __ `/ ___/ __/ /   / __ \\/ /   / __ \\" << std::endl;
      std::cout << "/ /_/ / /_/ (__  ) /_/ /___/ /_/ / /___/ /_/ /" << std::endl;
-     std::cout << "\\____/\\__,_/____/\\__/\\____/\\____/\\____/\\____/" << std::endl;                                 
+     std::cout << "\\____/\\__,_/____/\\__/\\____/\\____/\\____/\\____/" << std::endl;
 }
 
-static bool ValidateApp(const char* flagname, const std::string& value)
+static bool ValidateApp(const char *flagname, const std::string &value)
 {
-   if (value == "pagerank" || value == "pr")
-        return true;
-   if (value == "sssp" || value == "sp")
-        return true;
-   if (value == "query" || value == "q")
-        return true;
-   if (value == "cc")
-        return true;
-   if (value == "bfs")
-        return true;
-   if (value == "lp")
-        return true;
-   if (value == "individual_update" || value == "iu")
-        return true;
-   if (value == "batch_update" || value == "bu")
-        return true;
-   printf("Please enter the correct graph app name: query(q), pagerank(pr), sssp(sp), cc, bfs, lp, individual_update(iu), batch_update(bu).\n");
-   return false; 
+     if (value == "pagerank" || value == "pr")
+          return true;
+     if (value == "sssp" || value == "sp")
+          return true;
+     if (value == "query" || value == "q")
+          return true;
+     if (value == "cc")
+          return true;
+     if (value == "bfs")
+          return true;
+     if (value == "lp")
+          return true;
+     if (value == "individual_update" || value == "iu")
+          return true;
+     if (value == "batch_update" || value == "bu")
+          return true;
+     printf("Please enter the correct graph app name: query(q), pagerank(pr), sssp(sp), cc, bfs, lp, individual_update(iu), batch_update(bu).\n");
+     return false;
 }
 
-static bool ValidatePath(const char* flagname, const std::string& value)
+static bool ValidatePath(const char *flagname, const std::string &value)
 {
-   if (value != "")
-        return true;
-   printf("Please enter the graph data path.\n");
-   return false; 
+     if (value != "")
+          return true;
+     printf("Please enter the graph data path.\n");
+     return false;
 }
 
-static bool ValidatePositiveNumber(const char* flagname, int32_t value)
+static bool ValidatePositiveNumber(const char *flagname, int32_t value)
 {
-   if (value > 0)
-   {
-      if (flagname == "t" && value > omp_get_max_threads())
-         printf("NOTE: The number of threads is currently greater than the number of logical threads of the CPU.\n");
-      return true;
-   }
-   printf("Please enter the positive number.\n");
-   return false; 
+     if (value > 0)
+     {
+          if (flagname == "t" && value > omp_get_max_threads())
+               printf("NOTE: The number of threads is currently greater than the number of logical threads of the CPU.\n");
+          return true;
+     }
+     printf("Please enter the positive number.\n");
+     return false;
 }
 
-static bool ValidatePositiveNumberAndZero(const char* flagname, int32_t value)
+static bool ValidatePositiveNumberAndZero(const char *flagname, int32_t value)
 {
-   if (value >= 0)
-      return true;
-   printf("Please enter the positive number or 0.\n");
-   return false; 
+     if (value >= 0)
+          return true;
+     printf("Please enter the positive number or 0.\n");
+     return false;
 }
 
 DEFINE_string(app, "", "Graph application.");

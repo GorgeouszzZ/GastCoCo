@@ -19,23 +19,23 @@ double d = 0.85;
 std::mutex mtx;
 
 template<typename ptrType>
-void compute_pr_OPT(ptrType TMPptr, double tmpPR, vector<double>& vertex_state_new)
+void compute_pr_OPT(ptrType TMPptr, double tmpPR, vector<double> &vertex_state_new)
 {
-    for(int i=0;i<TMPptr->count;i++)
-    { 
+    for (int i = 0;i < TMPptr->count;i++)
+    {
         double delta = tmpPR * d;
         write_add(&vertex_state_new[TMPptr->NeighboorChunk[i].dest], delta);
     }
 }
 
-generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::VertexID& left,const GastCoCo::VertexID& right,vector<double>& vertex_state_old, vector<double>& vertex_state_new, bool pre_flag)
+generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::VertexID &left, const GastCoCo::VertexID &right, vector<double> &vertex_state_old, vector<double> &vertex_state_new, bool pre_flag)
 {
     GastCoCo::VertexID now_vertex = left;
     int nextFlag = 0;
-    if(cbl.VertexTableOut[left].Level == 1) nextFlag = CHUNK_LEVEL;
-    else if(cbl.VertexTableOut[left].Level == 2) nextFlag = LEAFCHUNK_LEVEL;
-    auto nextPtr_tmp = &(cbl.VertexTableOut[left].Neighboor);
-    int outDegree = cbl.VertexTableOut[left].NeighboorCnt;
+    if (cbl.VertexTableIn[left].Level == 1) nextFlag = CHUNK_LEVEL;
+    else if (cbl.VertexTableIn[left].Level == 2) nextFlag = LEAFCHUNK_LEVEL;
+    auto nextPtr_tmp = &(cbl.VertexTableIn[left].Neighboor);
+    int outDegree = cbl.VertexTableIn[left].NeighboorCnt;
     double tmpPR = vertex_state_old[left] / outDegree;
 
     // //-----profiling-----
@@ -47,9 +47,9 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::Ve
     // auto startall = std::chrono::steady_clock::now();
     // //-----profiling-----
 
-    while(now_vertex != right)
-    {         
-        if(nextFlag%2 != 0)
+    while (now_vertex != right)
+    {
+        if (nextFlag % 2 != 0)
         {
 
             // //-----profiling-----
@@ -119,10 +119,10 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList& cbl,const GastCoCo::Ve
             // //-----profiling-----
 
         }
-        if(nextFlag<0)
+        if (nextFlag < 0)
         {
             ++now_vertex;
-            outDegree = cbl.VertexTableOut[now_vertex].NeighboorCnt;
+            outDegree = cbl.VertexTableIn[now_vertex].NeighboorCnt;
             tmpPR = vertex_state_old[now_vertex] / outDegree;
         }
     }
