@@ -17,6 +17,13 @@ link_libraries(${LINK_FLAGS})
 
 add_executable(gastcoco core/gastcoco.cpp)
 target_link_libraries(gastcoco  libgflags.a libglog.a)
+target_include_directories(gastcoco PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/app
+    ${CMAKE_CURRENT_SOURCE_DIR}/CBList
+    ${CMAKE_CURRENT_SOURCE_DIR}/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/other
+    ${CMAKE_CURRENT_SOURCE_DIR}/others
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Adding DEBUG macro for gastcoco")

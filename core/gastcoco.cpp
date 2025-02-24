@@ -1,6 +1,6 @@
 #include "parameter_input.hpp"
-#include "../CBList/CBList.hpp"
-#include "../app/copagerank-pull.hpp"
+#include "CBList.hpp"
+#include "copagerank_pull.hpp"
 
 int main(int argc, char **argv)
 {
@@ -8,7 +8,7 @@ int main(int argc, char **argv)
     PrintLOGO();
 #endif
     google::SetVersionString("1.0");
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    google::ParseCommandLineFlags(&argc, &argv, true);
 
     if (FLAGS_app == "pagerank" || FLAGS_app == "pr")
     {

@@ -1,15 +1,15 @@
 #pragma once
 
-#include<iostream>
-#include<fstream>
-#include<sstream>
-#include<string>
-#include<vector>
-#include<stdio.h>
-#include<coroutine>
-#include<stack>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <stdio.h>
+#include <coroutine>
+#include <stack>
 #include "../CBList/CBList.hpp"
-#include "../other/Coro_for_graph_v2.hpp"
+#include "Coro_for_graph_v2.hpp"
 #include "../other/prefetch.hpp"
 #include "../other/atomic.hpp"
 #include <mutex>
@@ -18,10 +18,10 @@ double d = 0.85;
 
 std::mutex mtx;
 
-template<typename ptrType>
+template <typename ptrType>
 void compute_pr_OPT(ptrType TMPptr, double tmpPR, vector<double> &vertex_state_new)
 {
-    for (int i = 0;i < TMPptr->count;i++)
+    for (int i = 0; i < TMPptr->count; i++)
     {
         double delta = tmpPR * d;
         write_add(&vertex_state_new[TMPptr->NeighboorChunk[i].dest], delta);
@@ -32,8 +32,10 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::V
 {
     GastCoCo::VertexID now_vertex = left;
     int nextFlag = 0;
-    if (cbl.VertexTableIn[left].Level == 1) nextFlag = CHUNK_LEVEL;
-    else if (cbl.VertexTableIn[left].Level == 2) nextFlag = LEAFCHUNK_LEVEL;
+    if (cbl.VertexTableIn[left].Level == 1)
+        nextFlag = CHUNK_LEVEL;
+    else if (cbl.VertexTableIn[left].Level == 2)
+        nextFlag = LEAFCHUNK_LEVEL;
     auto nextPtr_tmp = &(cbl.VertexTableIn[left].Neighboor);
     int outDegree = cbl.VertexTableIn[left].NeighboorCnt;
     double tmpPR = vertex_state_old[left] / outDegree;
@@ -61,7 +63,7 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::V
             co_await suspend_always{};
             compute_pr_OPT(nextPtr_tmp->nextLv1Chunk, tmpPR, vertex_state_new);
             // for(int i=0;i<nextPtr_tmp->nextLv1Chunk->count;i++)
-            // { 
+            // {
             //     double delta = tmpPR * d;
             //     write_add(&vertex_state_new[nextPtr_tmp->nextLv1Chunk->NeighboorChunk[i].dest], delta);
             //     // if(nextPtr_tmp->nextLv1Chunk->NeighboorChunk[i].dest == 0)
@@ -78,7 +80,6 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::V
             // std::chrono::duration<double, std::micro> elapsedLv1 = endLv1 - startLv1;
             // Lv1time += elapsedLv1.count();
             // //-----profiling-----
-
         }
         else
         {
@@ -98,7 +99,7 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::V
             compute_pr_OPT(nextPtr_tmp->nextLeafChunk, tmpPR, vertex_state_new);
 
             // for(int i=0;i<nextPtr_tmp->nextLeafChunk->count;i++)
-            // { 
+            // {
             //     double delta = tmpPR * d;
             //     write_add(&vertex_state_new[nextPtr_tmp->nextLeafChunk->NeighboorChunk[i].dest], delta);
             //     // if(nextPtr_tmp->nextLeafChunk->NeighboorChunk[i].dest == 0)
@@ -117,7 +118,6 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::V
             // Leaftime += elapsedLeaf.count();
             // Leaftime2 += elapsedLeaf2.count();
             // //-----profiling-----
-
         }
         if (nextFlag < 0)
         {
