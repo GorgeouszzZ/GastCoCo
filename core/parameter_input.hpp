@@ -12,7 +12,7 @@ void PrintLOGO()
      std::cout << "\\____/\\__,_/____/\\__/\\____/\\____/\\____/\\____/" << std::endl;
 }
 
-static bool ValidateApp(const char *flagname, const std::string &value)
+static bool ValidateApp(const char* flagname, const std::string& value)
 {
      if (value == "pagerank" || value == "pr")
           return true;
@@ -34,7 +34,7 @@ static bool ValidateApp(const char *flagname, const std::string &value)
      return false;
 }
 
-static bool ValidatePath(const char *flagname, const std::string &value)
+static bool ValidatePath(const char* flagname, const std::string& value)
 {
      if (value != "")
           return true;
@@ -42,7 +42,7 @@ static bool ValidatePath(const char *flagname, const std::string &value)
      return false;
 }
 
-static bool ValidatePositiveNumber(const char *flagname, int32_t value)
+static bool ValidatePositiveNumber(const char* flagname, int32_t value)
 {
      if (value > 0)
      {
@@ -54,7 +54,7 @@ static bool ValidatePositiveNumber(const char *flagname, int32_t value)
      return false;
 }
 
-static bool ValidatePositiveNumberAndZero(const char *flagname, int32_t value)
+static bool ValidatePositiveNumberAndZero(const char* flagname, int32_t value)
 {
      if (value >= 0)
           return true;

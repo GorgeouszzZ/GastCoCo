@@ -33,23 +33,23 @@ namespace GastCoCo
     struct LeafChunk;
     union nextPointer
     {
-        LeafChunk *nextLeafChunk;
-        Lv1Chunk *nextLv1Chunk;
+        LeafChunk* nextLeafChunk;
+        Lv1Chunk* nextLv1Chunk;
     };
     struct Node //size 21?-->24
     {
         uint32_t count;
         bool IsLeaf;
-        InterNode *Parent;
+        InterNode* Parent;
         Node() :Parent(nullptr), IsLeaf(false), count(0) {};
         virtual ~Node() {};
         virtual void Print();
     };
     //
-    struct alignas(CACHE_LINE_SIZE *CACHE_LINE_MULT) InterNode : Node
+    struct alignas(CACHE_LINE_SIZE* CACHE_LINE_MULT) InterNode : Node
     {
         EdgeID KeyList[INTER_NODE_KEY_CNT];
-        Node *Child[INTER_NODE_PTR_CNT];
+        Node* Child[INTER_NODE_PTR_CNT];
         InterNode() :Node()
         {
             for (uint32_t i = 0;i < INTER_NODE_KEY_CNT;++i)
@@ -60,12 +60,12 @@ namespace GastCoCo
             Child[INTER_NODE_PTR_CNT - 1] = nullptr;
         };
         virtual ~InterNode() {};
-        bool Insert(VertexID dest, Node *NewNode);
-        int32_t Split(InterNode *Brother, int32_t &NewKey);
+        bool Insert(VertexID dest, Node* NewNode);
+        int32_t Split(InterNode* Brother, int32_t& NewKey);
         void Print();
     };
 
-    struct alignas(CACHE_LINE_SIZE *CACHE_LINE_MULT) LeafChunk : Node
+    struct alignas(CACHE_LINE_SIZE* CACHE_LINE_MULT) LeafChunk : Node
     {
         AdjUnit NeighboorChunk[LEAF_CHUNK_NCNT];
         nextPointer nextPtr;
@@ -84,27 +84,27 @@ namespace GastCoCo
         }
         virtual ~LeafChunk() {};
         bool Insert(AdjUnit NewNeighboor);
-        uint32_t Split(LeafChunk *p);
+        uint32_t Split(LeafChunk* p);
         void Print();
     };
 
     class BplusTree
     {
     public:
-        Node *Root;
+        Node* Root;
         uint32_t LeafCnt;
         BplusTree() :Root(nullptr), LeafCnt(0) {};
         bool Insert(AdjUnit NewNeighboor);
-        bool InsertKnowPos(AdjUnit NewNeighboor, LeafChunk *InsertPos);
-        LeafChunk *Find(VertexID dest);
-        bool Add_Node(InterNode *Parent, uint32_t NewKey, Node *NewNode);
+        bool InsertKnowPos(AdjUnit NewNeighboor, LeafChunk* InsertPos);
+        LeafChunk* Find(VertexID dest);
+        bool Add_Node(InterNode* Parent, uint32_t NewKey, Node* NewNode);
         void Print();
-        LeafChunk *GetLeafStart();
-        LeafChunk *GetLeafEnd();
+        LeafChunk* GetLeafStart();
+        LeafChunk* GetLeafEnd();
     }__attribute__((packed));
 
     //TODO: AOS/SOA
-    struct alignas(CACHE_LINE_SIZE *CACHE_LINE_L1_MULT) Lv1Chunk
+    struct alignas(CACHE_LINE_SIZE* CACHE_LINE_L1_MULT) Lv1Chunk
     {
         uint32_t count;
         int32_t nextType;//for next
@@ -140,8 +140,8 @@ namespace GastCoCo
     public:
         VertexID VertexNum;
         EdgeID EdgeNum;
-        CBLNode *VertexTableOut;
-        CBLNode *VertexTableIn;
+        CBLNode* VertexTableOut;
+        CBLNode* VertexTableIn;
         nextPointer GTChainOut;
         nextPointer GTChainIn;
         std::vector<std::mutex> writelockOut;
@@ -158,7 +158,7 @@ namespace GastCoCo
             nextPointer CurrentPtr;
             int CurrentPos;
             bool alive;
-            EdgeIterator(const CBList *Graph, VertexID src);
+            EdgeIterator(const CBList* Graph, VertexID src);
             EdgeIterator operator++ ();
             AdjUnit GetEdegInfo();
         };
@@ -166,7 +166,7 @@ namespace GastCoCo
         CBList(VertexID Node, EdgeID Edge, std::string path);
         CBList(VertexID Node, EdgeID Edge, std::string path, bool incoming);
         CBList(VertexID Node, EdgeID Edge, std::string path, ComputeMode mode);
-        CBList(VertexID Node, EdgeID Edge, std::string path, EdgeID all_edge_num, std::vector<Gedge> &RemainEdgeList);
+        CBList(VertexID Node, EdgeID Edge, std::string path, EdgeID all_edge_num, std::vector<Gedge>& RemainEdgeList);
         bool InsertEdgeOut(VertexID src, AdjUnit NeighboorINFO);
         bool InsertEdgeIn(VertexID src, AdjUnit NeighboorINFO);
         bool InsertEdgeOutVLock(VertexID src, AdjUnit NeighboorINFO);
@@ -176,10 +176,10 @@ namespace GastCoCo
         std::vector<VertexID> GetNeighborOut(VertexID src);
         std::vector<VertexID> GetNeighborIn(VertexID src);
         bool InsertGraphIE(std::string path, uint64_t startline, uint64_t endline);
-        Gedge *GetInsertList(std::string path, uint64_t startline, uint64_t endline);
-        void AddEdgeBatchOut(std::vector<Gedge_noWeight> &EdgeList, EdgeID edge_count);
-        void AddEdgeBatchIn(std::vector<Gedge_noWeight> &EdgeList, EdgeID edge_count);
-        void ConnectGTChain(nextPointer &GTChain, CBLNode *&VertexTable);
+        Gedge* GetInsertList(std::string path, uint64_t startline, uint64_t endline);
+        void AddEdgeBatchOut(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count);
+        void AddEdgeBatchIn(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count);
+        void ConnectGTChain(nextPointer& GTChain, CBLNode*& VertexTable);
     };
 
     void Node::Print()
@@ -223,7 +223,7 @@ namespace GastCoCo
         return true;
     }
 
-    bool InterNode::Insert(uint32_t dest, Node *NewNode)
+    bool InterNode::Insert(uint32_t dest, Node* NewNode)
     {
         uint32_t i = 0;
         for (; (i < count) && (dest > KeyList[i]); ++i)//i指向key要插入的位置
@@ -240,7 +240,7 @@ namespace GastCoCo
         return true;
     }
 
-    uint32_t LeafChunk::Split(LeafChunk *p)
+    uint32_t LeafChunk::Split(LeafChunk* p)
     {
         assert(count == LEAF_CHUNK_NCNT);
         uint32_t j = 0;
@@ -260,7 +260,7 @@ namespace GastCoCo
         return p->NeighboorChunk[0].dest;
     }
 
-    int32_t InterNode::Split(InterNode *Brother, int32_t &NewKey)
+    int32_t InterNode::Split(InterNode* Brother, int32_t& NewKey)
     {
         assert(count == INTER_NODE_KEY_CNT);
         int32_t InsertPos = -1;
@@ -286,7 +286,7 @@ namespace GastCoCo
 
     bool BplusTree::Insert(AdjUnit NewNeighboor)
     {
-        LeafChunk *InsertPos = Find(NewNeighboor.dest);
+        LeafChunk* InsertPos = Find(NewNeighboor.dest);
         if (InsertPos == nullptr)
         {
             InsertPos = new LeafChunk();
@@ -295,7 +295,7 @@ namespace GastCoCo
         }
         if (InsertPos->count < LEAF_CHUNK_NCNT)
             return InsertPos->Insert(NewNeighboor);
-        LeafChunk *NewLeafChunk = new LeafChunk();
+        LeafChunk* NewLeafChunk = new LeafChunk();
         uint32_t NewLeafChunkFirstDest = InsertPos->Split(NewLeafChunk);
         ++LeafCnt;
         if (NewNeighboor.dest < NewLeafChunkFirstDest)
@@ -306,10 +306,10 @@ namespace GastCoCo
         {
             NewLeafChunk->Insert(NewNeighboor);
         }
-        InterNode *this_parent = (InterNode *)(InsertPos->Parent);
+        InterNode* this_parent = (InterNode*)(InsertPos->Parent);
         if (nullptr == this_parent)//初始化parent，若没有父结点，新建一个
         {
-            InterNode *New_Root = new InterNode;
+            InterNode* New_Root = new InterNode;
             New_Root->Child[0] = InsertPos;
             New_Root->KeyList[0] = NewLeafChunkFirstDest;
             New_Root->Child[1] = NewLeafChunk;
@@ -322,7 +322,7 @@ namespace GastCoCo
         return Add_Node(this_parent, NewLeafChunkFirstDest, NewLeafChunk);
     }
 
-    bool BplusTree::InsertKnowPos(AdjUnit NewNeighboor, LeafChunk *InsertPos)
+    bool BplusTree::InsertKnowPos(AdjUnit NewNeighboor, LeafChunk* InsertPos)
     {
         if (InsertPos == nullptr)
         {
@@ -332,7 +332,7 @@ namespace GastCoCo
         }
         if (InsertPos->count < LEAF_CHUNK_NCNT)
             return InsertPos->Insert(NewNeighboor);
-        LeafChunk *NewLeafChunk = new LeafChunk();
+        LeafChunk* NewLeafChunk = new LeafChunk();
         uint32_t NewLeafChunkFirstDest = InsertPos->Split(NewLeafChunk);
         ++LeafCnt;
         if (NewNeighboor.dest < NewLeafChunkFirstDest)
@@ -343,10 +343,10 @@ namespace GastCoCo
         {
             NewLeafChunk->Insert(NewNeighboor);
         }
-        InterNode *this_parent = (InterNode *)(InsertPos->Parent);
+        InterNode* this_parent = (InterNode*)(InsertPos->Parent);
         if (nullptr == this_parent)//初始化parent，若没有父结点，新建一个
         {
-            InterNode *New_Root = new InterNode;
+            InterNode* New_Root = new InterNode;
             New_Root->Child[0] = InsertPos;
             New_Root->KeyList[0] = NewLeafChunkFirstDest;
             New_Root->Child[1] = NewLeafChunk;
@@ -359,34 +359,34 @@ namespace GastCoCo
         return Add_Node(this_parent, NewLeafChunkFirstDest, NewLeafChunk);
     }
 
-    LeafChunk *BplusTree::Find(uint32_t dest)
+    LeafChunk* BplusTree::Find(uint32_t dest)
     {
         uint32_t i = 0;
-        Node *p = Root;
-        InterNode *q;
+        Node* p = Root;
+        InterNode* q;
         while (p != nullptr)
         {
             if (p->IsLeaf)
                 break;
             for (i = 0; i < p->count; ++i)
             {
-                if (dest < ((InterNode *)p)->KeyList[i])
+                if (dest < ((InterNode*)p)->KeyList[i])
                     break;
             }
-            q = (InterNode *)p;
+            q = (InterNode*)p;
             p = q->Child[i];
         }
 
-        return (LeafChunk *)p;//把根return,如果根为空,第一个插入函数生成的节点即为根
+        return (LeafChunk*)p;//把根return,如果根为空,第一个插入函数生成的节点即为根
     }
 
-    bool BplusTree::Add_Node(InterNode *Parent, VertexID NewKey, Node *NewNode)
+    bool BplusTree::Add_Node(InterNode* Parent, VertexID NewKey, Node* NewNode)
     {
         if (nullptr == Parent || Parent->IsLeaf)
             return false;
         if (Parent->count < INTER_NODE_KEY_CNT)//父亲不满
             return Parent->Insert(NewKey, NewNode);
-        InterNode *Brother = new InterNode;
+        InterNode* Brother = new InterNode;
         //叶子节点满，父节点也满分裂情况
         int32_t NewKey1 = NewKey;
         int32_t InsertPos = Parent->Split(Brother, NewKey1);//NewKey为需要提取并插入到root节点的值
@@ -398,7 +398,7 @@ namespace GastCoCo
             Parent->Insert(NewKey, NewNode);
 
 
-        InterNode *Pparent = (InterNode *)(Parent->Parent);
+        InterNode* Pparent = (InterNode*)(Parent->Parent);
         if (NULL == Pparent)
         {
             Pparent = new InterNode();
@@ -449,26 +449,26 @@ namespace GastCoCo
         // }
     }
 
-    LeafChunk *BplusTree::GetLeafStart()
+    LeafChunk* BplusTree::GetLeafStart()
     {
         auto p = Root;
         if (p == nullptr) return nullptr;
         while (!p->IsLeaf)
         {
-            p = ((InterNode *)p)->Child[0];
+            p = ((InterNode*)p)->Child[0];
         }
-        return (LeafChunk *)p;
+        return (LeafChunk*)p;
     }
 
-    LeafChunk *BplusTree::GetLeafEnd()
+    LeafChunk* BplusTree::GetLeafEnd()
     {
         auto p = Root;
         if (p == nullptr) return nullptr;
         while (!p->IsLeaf)
         {
-            p = ((InterNode *)p)->Child[p->count];
+            p = ((InterNode*)p)->Child[p->count];
         }
-        return (LeafChunk *)p;
+        return (LeafChunk*)p;
     }
     CBList::CBList(std::string infopath, ComputeMode cm, bool load_graph_in_order)
     {
@@ -500,13 +500,13 @@ namespace GastCoCo
         #endif
             if (load_graph_in_order)
             {
-                for (auto &edge : EdgeListFromFile)
+                for (auto& edge : EdgeListFromFile)
                     this->VertexTableIn[edge.end_vertex].Insert({ edge.start_vertex, edge.value });
             }
             else
             {
             #pragma omp parallel for num_threads(omp_get_max_threads())
-                for (auto &edge : EdgeListFromFile)
+                for (auto& edge : EdgeListFromFile)
                 {
                     writelockIn[edge.end_vertex].lock();
                     this->VertexTableIn[edge.end_vertex].Insert({ edge.start_vertex, edge.value });
@@ -527,13 +527,13 @@ namespace GastCoCo
         #endif
             if (load_graph_in_order)
             {
-                for (auto &edge : EdgeListFromFile)
+                for (auto& edge : EdgeListFromFile)
                     this->VertexTableOut[edge.start_vertex].Insert({ edge.end_vertex, edge.value });
             }
             else
             {
             #pragma omp parallel for num_threads(omp_get_max_threads())
-                for (auto &edge : EdgeListFromFile)
+                for (auto& edge : EdgeListFromFile)
                 {
                     writelockOut[edge.start_vertex].lock();
                     this->VertexTableOut[edge.start_vertex].Insert({ edge.end_vertex, edge.value });
@@ -545,8 +545,8 @@ namespace GastCoCo
         {
             this->VertexTableOut = new CBLNode[VertexNum];
             this->VertexTableIn = new CBLNode[VertexNum];
-            Lv1Chunk *Lv1ClistOut = new Lv1Chunk[VertexNum];
-            Lv1Chunk *Lv1ClistIn = new Lv1Chunk[VertexNum];
+            Lv1Chunk* Lv1ClistOut = new Lv1Chunk[VertexNum];
+            Lv1Chunk* Lv1ClistIn = new Lv1Chunk[VertexNum];
 
         #pragma omp parallel for num_threads(omp_get_max_threads()) 
             for (IndexType v_i = 0; v_i < VertexNum; ++v_i)
@@ -556,7 +556,7 @@ namespace GastCoCo
             }
             if (load_graph_in_order)
             {
-                for (auto &edge : EdgeListFromFile)
+                for (auto& edge : EdgeListFromFile)
                 {
                     this->VertexTableOut[edge.start_vertex].Insert({ edge.end_vertex, edge.value });
                     this->VertexTableIn[edge.end_vertex].Insert({ edge.start_vertex, edge.value });
@@ -565,7 +565,7 @@ namespace GastCoCo
             else
             {
             #pragma omp parallel for num_threads(omp_get_max_threads()) 
-                for (auto &edge : EdgeListFromFile)
+                for (auto& edge : EdgeListFromFile)
                 {
                     std::scoped_lock double_lock(writelockOut[edge.start_vertex], writelockIn[edge.end_vertex]);
                     this->VertexTableOut[edge.start_vertex].Insert({ edge.end_vertex, edge.value });
@@ -587,14 +587,14 @@ namespace GastCoCo
         this->EdgeNum = EdgeNum;
         this->VertexNum = VertexNum;
         this->VertexTableOut = new CBLNode[VertexNum];
-        Lv1Chunk *Lv1Clist = new Lv1Chunk[VertexNum];
+        Lv1Chunk* Lv1Clist = new Lv1Chunk[VertexNum];
     #pragma omp parallel for num_threads(omp_get_max_threads()) 
         for (int i = 0;i < VertexNum;++i)
             this->VertexTableOut[i].Neighboor.nextLv1Chunk = Lv1Clist + i;
         auto EdgeListFromFile = LoadGraphFromBGBinaryFile(EdgeNum, path);
         std::cout << "file_content_size=" << EdgeListFromFile.size() << std::endl;
         std::cout << "load outgoingCBList...\n";
-        for (auto &edge : EdgeListFromFile)
+        for (auto& edge : EdgeListFromFile)
             this->VertexTableOut[edge.start_vertex].Insert({ edge.end_vertex, edge.value });
         //assert(max_ == VertexNum - 1);
         //assert(EdgeNum == edge_cnts); //可能文件中有首行说明
@@ -633,7 +633,7 @@ namespace GastCoCo
         this->EdgeNum = EdgeNum;
         this->VertexNum = VertexNum;
         this->VertexTableIn = new CBLNode[VertexNum];
-        Lv1Chunk *Lv1Clist = new Lv1Chunk[VertexNum];
+        Lv1Chunk* Lv1Clist = new Lv1Chunk[VertexNum];
     #pragma omp parallel for num_threads(omp_get_max_threads()) 
         for (int i = 0;i < VertexNum;++i)
             this->VertexTableIn[i].Neighboor.nextLv1Chunk = Lv1Clist + i;
@@ -641,7 +641,7 @@ namespace GastCoCo
         std::cout << "file_content_size=" << EdgeListFromFile.size() << std::endl;
         std::cout << "load incomingCBList...\n";
 
-        for (auto &edge : EdgeListFromFile)
+        for (auto& edge : EdgeListFromFile)
             this->VertexTableIn[edge.end_vertex].Insert({ edge.start_vertex, edge.value });
 
         //assert(max_ == VertexNum - 1);
@@ -743,7 +743,7 @@ namespace GastCoCo
         // }
     }
 
-    CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path, EdgeID all_edge_num, std::vector<Gedge> &RemainEdgeList) :
+    CBList::CBList(VertexID VertexNum, EdgeID EdgeNum, std::string path, EdgeID all_edge_num, std::vector<Gedge>& RemainEdgeList) :
         writelockOut(VertexNum), writelockIn(VertexNum), vertex_lock(VertexNum)
     {
         printf("Abandon this CTOR for now.\n");
@@ -1071,7 +1071,7 @@ namespace GastCoCo
         return NeighboorList;
     }
 
-    void CBList::AddEdgeBatchOut(std::vector<Gedge_noWeight> &EdgeList, EdgeID edge_count)
+    void CBList::AddEdgeBatchOut(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count)
     {
         // generate partitions array
         std::vector<uint32_t> parts;
@@ -1101,7 +1101,7 @@ namespace GastCoCo
     }
 
 
-    void CBList::AddEdgeBatchIn(std::vector<Gedge_noWeight> &EdgeList, EdgeID edge_count)
+    void CBList::AddEdgeBatchIn(std::vector<Gedge_noWeight>& EdgeList, EdgeID edge_count)
     {
         // generate partitions array
         std::vector<uint32_t> parts;
@@ -1137,8 +1137,8 @@ namespace GastCoCo
         int bt_num;
         int lv1_num;
         std::vector<VertexID> bt_record;
-        CBList &cbl;
-        MetaInfo(CBList &graph) :bt_num(0), lv1_num(0), bt_record(0), cbl(graph) {};
+        CBList& cbl;
+        MetaInfo(CBList& graph) :bt_num(0), lv1_num(0), bt_record(0), cbl(graph) {};
         void getInfo()
         {
             for (IndexType v = 0; v < this->cbl.VertexNum; ++v)
@@ -1156,7 +1156,7 @@ namespace GastCoCo
         }
     };
 
-    CBList::EdgeIterator::EdgeIterator(const CBList *Graph, VertexID src) :v(src), CurrentPos(0), AccessEdgeCnt(0), alive(true)
+    CBList::EdgeIterator::EdgeIterator(const CBList* Graph, VertexID src) :v(src), CurrentPos(0), AccessEdgeCnt(0), alive(true)
     {
         level = Graph->VertexTableOut[src].Level;
         NeighboorCnt = Graph->VertexTableOut[src].NeighboorCnt;
@@ -1200,7 +1200,7 @@ namespace GastCoCo
         }
     }
 
-    void CBList::ConnectGTChain(nextPointer &GTChain, CBLNode *&VertexTable)
+    void CBList::ConnectGTChain(nextPointer& GTChain, CBLNode*& VertexTable)
     {
         GTChain = VertexTable[0].Neighboor;
     #pragma omp parallel for num_threads(omp_get_max_threads()) 
