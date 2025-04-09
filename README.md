@@ -17,10 +17,13 @@ Co-Design for Dynamic Graph Processing [VLDB2025])
 ### 2.2 Setup
 ```shell
 cd GastCoCo
+bash build.sh
+```
+```shell
 mkdir build && cd build
 # CM is used to specify that the chunk size in CBList is an integer multiple of the cache line size.
 # If set to 0 or left unspecified, the default setting will be used.
-cmake --DCM=[0/1/2/4/8/16] .. --DCMAKE_BUILD_TYPE=Release
+cmake -DCM=[0/1/2/4/8/16] .. -DCMAKE_BUILD_TYPE=Release
 make
 ```
 

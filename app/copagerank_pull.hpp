@@ -30,7 +30,7 @@ void pagerank(GastCoCo::CBList &graph, int thread_num, int coro_num, int iter)
 
     for (GastCoCo::IndexType it = 0; it < iter; ++it)
     {
-    #pragma omp parallel for
+#pragma omp parallel for
         for (uint32_t tid = 0; tid < thread_num; ++tid)
         {
             vector<coroutine_handle<>> PrTasks(coro_num);
@@ -38,11 +38,11 @@ void pagerank(GastCoCo::CBList &graph, int thread_num, int coro_num, int iter)
             {
                 // PrTasks[i]=pagerank_oi_hybrid1(G, partition_graph_result[tid * coro_num + i], partition_graph_result[tid * coro_num + i+1 ], vertex_state_old, vertex_state_new, true).get_handle();
                 PrTasks[i] = pagerank_one_iter(graph,
-                    partition_graph_result[tid * coro_num + i],
-                    partition_graph_result[tid * coro_num + i + 1],
-                    vertex_state_old, vertex_state_new,
-                    true)
-                    .get_handle();
+                                               partition_graph_result[tid * coro_num + i],
+                                               partition_graph_result[tid * coro_num + i + 1],
+                                               vertex_state_old, vertex_state_new,
+                                               true)
+                                 .get_handle();
             }
             // std::cout << tid << omp_get_thread_num() << " process: " << partition_graph_result[tid * coro_num] << "~" << partition_graph_result[tid * coro_num + coro_num] << std::endl;
             int finished = 0;
@@ -69,7 +69,7 @@ void pagerank(GastCoCo::CBList &graph, int thread_num, int coro_num, int iter)
 
         swap(vertex_state_new, vertex_state_old);
 
-    #pragma omp parallel for
+#pragma omp parallel for
         for (GastCoCo::VertexID vid = 0; vid < graph.VertexNum; ++vid)
             vertex_state_new[vid] = 1 - d;
     }

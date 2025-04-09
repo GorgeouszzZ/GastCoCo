@@ -1,6 +1,6 @@
 #include "parameter_input.hpp"
-#include "../CBList/CBList.hpp"
-#include "../app/copagerank-pull.hpp"
+#include "CBList.hpp"
+#include "copagerank_pull.hpp"
 
 GastCoCo::CBList* BuildGraph(std::string data_info_path, GastCoCo::ComputeMode compute_mode, bool origin_order)
 {
@@ -23,7 +23,8 @@ GastCoCo::CBList* BuildGraph(std::string data_info_path, GastCoCo::ComputeMode c
     return graph_ptr;
 }
 
-void ExecuteAlgorithm(
+void ExecuteAlgorithm
+(
     std::string algorithm_name,
     std::string data_info_path, bool origin_order,
     bool compute_mode, bool execute_mode, bool prefetch_mode,
