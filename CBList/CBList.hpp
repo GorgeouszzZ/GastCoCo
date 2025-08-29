@@ -10,8 +10,8 @@
 #include <string>
 #include <chrono>
 #include <mutex>
-#include "../other/type.hpp"
-#include "../other/graphIO.hpp"
+#include "type.hpp"
+#include "graphIO.hpp"
 #include "CBListChunkSize.hpp"
 // #include "../other/futex.hpp"
 
@@ -961,7 +961,7 @@ namespace GastCoCo
         //     VertexTable[VertexNum-1].Neighboor.nextLv1Chunk->nextType = -10;
         // else if(VertexTable[VertexNum-1].Level==2)
         //     VertexTable[VertexNum-1].Neighboor.nextLeafChunk->nextType = -10;
-        // return true;
+        return true;
     }
 
     //TODO: judge mode (scan or b+tree) / one LeafNode BinarySearch
@@ -1094,7 +1094,7 @@ namespace GastCoCo
             //TODO: 无权图的时候 改一下现在这里的有权图的插入。
             for (IndexType ei = parts[i]; ei < parts[i + 1]; ++ei)
             {
-                this->VertexTableOut[EdgeList[ei].start_vertex].Insert(AdjUnit({ EdgeList[ei].end_vertex, 0 }));
+                auto insert_result = this->VertexTableOut[EdgeList[ei].start_vertex].Insert(AdjUnit({ EdgeList[ei].end_vertex, 0 }));
                 // this->InsertEdge();
             }
         }
@@ -1124,7 +1124,7 @@ namespace GastCoCo
             //TODO: 无权图的时候 改一下现在这里的有权图的插入。
             for (IndexType ei = parts[i]; ei < parts[i + 1]; ++ei)
             {
-                this->VertexTableIn[EdgeList[ei].end_vertex].Insert(AdjUnit({ EdgeList[ei].start_vertex, 0 }));
+                auto insert_result = this->VertexTableIn[EdgeList[ei].end_vertex].Insert(AdjUnit({ EdgeList[ei].start_vertex, 0 }));
                 // this->InsertEdge();
             }
         }

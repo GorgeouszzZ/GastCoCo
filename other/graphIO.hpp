@@ -199,7 +199,11 @@ std::tuple<VertexID, EdgeID, std::string, bool> LoadEVFromInfoFile(std::string G
 
 std::tuple<VertexID, EdgeID, std::vector<Gedge>> LoadGraphProxy(std::string GRAPH_INFO_DIR)
 {
-    auto [v, e, GRAPH_DIR, IsBinary] = LoadEVFromInfoFile(GRAPH_INFO_DIR);
+    const auto& [v, e, GRAPH_DIR, IsBinary] = LoadEVFromInfoFile(GRAPH_INFO_DIR);
+#ifdef DEBUG
+    std::cout << "Graph info path: " << GRAPH_INFO_DIR << std::endl;
+    std::cout << "Vertex num: " << v << "\nEdge num: "<< e << "\nGraph data path: " << GRAPH_DIR << "\nisBinary?: " << IsBinary << std::endl;
+#endif
     if(IsBinary)
         return std::make_tuple(v, e, LoadGraphFromBGBinaryFile(e, GRAPH_DIR));
     else

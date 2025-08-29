@@ -1,5 +1,5 @@
 // #include "../Bind_cpu.hpp"
-#include "../other/Slice_for_CBL_coro.hpp"
+#include "Slice_for_CBL_coro.hpp"
 #include <iostream>
 #include <stdio.h>
 #include <chrono>

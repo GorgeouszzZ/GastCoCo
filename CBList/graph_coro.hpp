@@ -5,17 +5,17 @@
 #include "../other/type.hpp"
 #include "../CBList/CBList.hpp"
 #include "bitmap.hpp"
-#include "../other/Slice_for_CBL_coro.hpp"
-#include "../other/Coro_graph_v2.hpp"
+#include "graphIO.hpp"
+#include "Slice_for_CBL_coro.hpp"
+#include "Coro_for_graph_v2.hpp"
 
 
-
+using namespace GastCoCo;
 
 template <typename EdgeData = Empty>
 class Graph {
 public:
-    CoroGraph::CBList* cblptr;
-    CoroGraph::CBList* cblptroutgoing;
+    GastCoCo::CBList* cblptr;
     std::vector<uint32_t> SFEresult;
     std::vector<uint32_t> SFEresultoutgoing;
     std::vector<int> SFVresult;
@@ -79,7 +79,7 @@ public:
     coroutines = 2;
 
     cblptr = nullptr;
-    cblptroutgoing = nullptr;
+    // cblptroutgoing = nullptr;
 
     init();
   }
@@ -155,15 +155,15 @@ public:
     // MPI_Barrier(MPI_COMM_WORLD);
   }
 
-    void load_directed(std::string datapath, std::string infopath, int input_threads, int input_coros = 2)
+    void load_directed(std::string infopath, int input_threads, int input_coros = 2)
     {
-        auto [V, E] = LoadEVFromInfoFile(infopath);
+        // const auto& [V, E, datapath, isBinary] = GastCoCo::LoadEVFromInfoFile(infopath);
         // weight 1 mode
-        // cblptr = new CoroGraph::CBList(V, E, datapath, 1);
-        // cblptroutgoing = new CoroGraph::CBList(V, E, datapath, 2);
+        // cblptr = new GastCoCo::CBList(V, E, datapath, 1);
+        // cblptroutgoing = new GastCoCo::CBList(V, E, datapath, 2);
 
-        cblptr = new CoroGraph::CBList(V, E, datapath);
-        cblptroutgoing = new CoroGraph::CBList(V, E, datapath, true);
+        cblptr = new GastCoCo::CBList(infopath, ComputeMode::Mixed, false);
+        // cblptroutgoing = new GastCoCo::CBList(V, E, datapath, true);
 
 
         if(cblptr == nullptr)
@@ -174,15 +174,15 @@ public:
         this->threads = input_threads;
         this->coroutines = input_coros;
         SFEresult = SliceForCoroDynamic(*cblptr, threads);
-        SFEresultoutgoing = SliceForCoroDynamic(*cblptroutgoing, threads);
+        // SFEresultoutgoing = SliceForCoroDynamic(*cblptroutgoing, threads);
         size_t basic_chunk = 64; 
-        SFVresult = SliceForVertices(cblptr->NodeNum, threads, basic_chunk);
+        SFVresult = GastCoCo::SliceForVertices(cblptr->VertexNum, threads, basic_chunk);
     }
 
     template<typename T>
     void fill_vertex_array(T * array, T value) {
         #pragma omp parallel for
-        for (VertexID v_i=0;v_i<cblptr->NodeNum;v_i++) {
+        for (VertexID v_i=0;v_i<cblptr->VertexNum;v_i++) {
         array[v_i] = value;
         }
     }
@@ -273,7 +273,7 @@ public:
     // TODO:active_edges 换个方式 或者 看一下这个开销？
     EdgeID active_edges = process_vertices<EdgeID>(
       [&](VertexID vtx){
-        return (EdgeID)cblptr->NodeList[vtx].NeighboorCnt;
+        return (EdgeID)cblptr->VertexTableIn[vtx].NeighboorCnt;
       },
       active
     );
@@ -380,7 +380,7 @@ public:
       while (true) {
         VertexID v_i = __sync_fetch_and_add(&thread_state[thread_id]->curr, basic_chunk);
         if (v_i >= thread_state[thread_id]->end) break;
-        for(VertexID i = 0; i < basic_chunk && v_i + i < cblptr->NodeNum; ++i)
+        for(VertexID i = 0; i < basic_chunk && v_i + i < cblptr->VertexNum; ++i)
           local_reducer += process(v_i+i);
       }
       thread_state[thread_id]->status = STEALING;
@@ -389,7 +389,7 @@ public:
         while (thread_state[t_i]->status!=STEALING) {
           VertexID v_i = __sync_fetch_and_add(&thread_state[t_i]->curr, basic_chunk);
           if (v_i >= thread_state[t_i]->end) continue;
-          for(VertexID i = 0; i < basic_chunk && v_i + i < cblptr->NodeNum; ++i)
+          for(VertexID i = 0; i < basic_chunk && v_i + i < cblptr->VertexNum; ++i)
             local_reducer += process(v_i+i);
         }
       }
@@ -442,7 +442,7 @@ public:
   }
 
   template<typename R, typename M>
-  R coro_process_edges_all_graph(std::function<generator<void>(const CoroGraph::CBList*, VertexID, VertexID)> dense_signal) {
+  R coro_process_edges_all_graph(std::function<generator<void>(const GastCoCo::CBList*, VertexID, VertexID)> dense_signal) {
 
     R reducer = 0;
     size_t basic_chunk = 64;
@@ -513,15 +513,15 @@ public:
 
   template<typename R, typename M>
   R coro_process_edges(
-    std::function<generator<void>(const CoroGraph::CBList*, VertexID, VertexID, int&)> sparse_signal, 
-    std::function<generator<void>(const CoroGraph::CBList*, VertexID, VertexID, int&)> dense_signal, 
+    std::function<generator<void>(const GastCoCo::CBList*, VertexID, VertexID, int&)> sparse_signal, 
+    std::function<generator<void>(const GastCoCo::CBList*, VertexID, VertexID, int&)> dense_signal, 
     Bitmap * active) {
 
     R reducer = 0;
     // TODO:active_edges 换个方式 或者 看一下这个开销？
     EdgeID active_edges = process_vertices<EdgeID>(
       [&](VertexID vtx){
-        return (EdgeID)cblptr->NodeList[vtx].NeighboorCnt;
+        return (EdgeID)cblptr->VertexTableOut[vtx].NeighboorCnt;
       },
       active
     );

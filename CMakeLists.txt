@@ -7,6 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 project(GastCoCo)
 
+set(CMAKE_CXX_STANDARD 20)
+
+include_directories(CBList)
+include_directories(other)
+
 if(DEFINED CM)
     add_definitions(-DCM=${CM})
 endif()
@@ -16,6 +21,7 @@ set(LINK_FLAGS "-lnuma")
 link_libraries(${LINK_FLAGS})
 
 add_executable(gastcoco core/gastcoco.cpp)
+add_executable(coPageRankNew app/coPageRank.cpp)
 target_link_libraries(gastcoco  libgflags.a libglog.a)
 target_include_directories(gastcoco PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/app
@@ -28,6 +34,7 @@ target_include_directories(gastcoco PUBLIC
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Adding DEBUG macro for gastcoco")
     target_compile_definitions(gastcoco PRIVATE DEBUG)
+    target_compile_definitions(coPageRankNew PRIVATE DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -rdynamic")
 endif()
 

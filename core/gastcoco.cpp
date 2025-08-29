@@ -6,11 +6,11 @@ GastCoCo::CBList* BuildGraph(std::string data_info_path, GastCoCo::ComputeMode c
 {
 #ifdef DEBUG
     if (compute_mode == GastCoCo::ComputeMode::Pull)
-        std::cout << "Building [PULL] graph from [" << data_info_path << "] by origin order[" << origin_order << "].";
+        std::cout << "Building [PULL] graph from [" << data_info_path << "] by origin order[" << origin_order << "]." << std::endl;
     else if (compute_mode == GastCoCo::ComputeMode::Push)
-        std::cout << "Building [PUSH] graph from [" << data_info_path << "] by origin order[" << origin_order << "].";
+        std::cout << "Building [PUSH] graph from [" << data_info_path << "] by origin order[" << origin_order << "]." << std::endl;
     else
-        std::cout << "Building [MIXED] graph from [" << data_info_path << "] by origin order[" << origin_order << "].";
+        std::cout << "Building [MIXED] graph from [" << data_info_path << "] by origin order[" << origin_order << "]." << std::endl;
 #endif
     auto start = std::chrono::steady_clock::now();
 
