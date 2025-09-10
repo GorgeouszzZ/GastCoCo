@@ -42,7 +42,7 @@ void ExecuteAlgorithm
         else
         {
             // use pull only
-            auto graph = BuildGraph(data_info_path, GastCoCo::ComputeMode::Pull, origin_order);
+            auto graph = BuildGraph(data_info_path, GastCoCo::ComputeMode::Push, origin_order);
             pagerank(*graph, thread_num, coroutine_num, iterations);
         }
     }

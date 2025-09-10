@@ -167,6 +167,10 @@ namespace GastCoCo
         CBList(VertexID Node, EdgeID Edge, std::string path, bool incoming);
         CBList(VertexID Node, EdgeID Edge, std::string path, ComputeMode mode);
         CBList(VertexID Node, EdgeID Edge, std::string path, EdgeID all_edge_num, std::vector<Gedge>& RemainEdgeList);
+        CBList(const CBList&) = delete;
+        CBList& operator=(const CBList&) = delete;
+        CBList(CBList&&) noexcept = default;
+        CBList& operator=(CBList&&) noexcept = default;
         bool InsertEdgeOut(VertexID src, AdjUnit NeighboorINFO);
         bool InsertEdgeIn(VertexID src, AdjUnit NeighboorINFO);
         bool InsertEdgeOutVLock(VertexID src, AdjUnit NeighboorINFO);

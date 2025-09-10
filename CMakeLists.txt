@@ -22,6 +22,7 @@ link_libraries(${LINK_FLAGS})
 
 add_executable(gastcoco core/gastcoco.cpp)
 add_executable(coPageRankNew app/coPageRank.cpp)
+add_executable(pr app/standard_pr.cpp)
 target_link_libraries(gastcoco  libgflags.a libglog.a)
 target_include_directories(gastcoco PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/app
@@ -35,6 +36,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Adding DEBUG macro for gastcoco")
     target_compile_definitions(gastcoco PRIVATE DEBUG)
     target_compile_definitions(coPageRankNew PRIVATE DEBUG)
+    target_compile_definitions(pr PRIVATE DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -rdynamic")
 endif()
 
