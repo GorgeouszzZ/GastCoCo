@@ -19,18 +19,16 @@ double d = 0.85;
 std::mutex mtx;
 
 template <typename ptrType>
-void compute_pr_pull(ptrType TMPptr, const GastCoCo::CBList &cbl, GastCoCo::VertexID dst, vector<double> &vertex_state_old, vector<double> &vertex_state_new) {
+void compute_pr_pull(ptrType TMPptr, GastCoCo::VertexID dst, vector<double> &vertex_contrib, vector<double> &vertex_state_new) {
     double sum = 0;
     for (int i = 0; i < TMPptr->count; i++) {
         auto src = TMPptr->NeighboorChunk[i].dest;
-        auto out_degree = cbl.VertexTableOut[src].NeighboorCnt;
-        if (out_degree > 0)
-            sum += vertex_state_old[src] / out_degree;
+        sum += vertex_contrib[src];
     }
     vertex_state_new[dst] += sum * d;
 }
 
-generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::VertexID &left, const GastCoCo::VertexID &right, vector<double> &vertex_state_old, vector<double> &vertex_state_new, bool pre_flag) {
+generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::VertexID &left, const GastCoCo::VertexID &right, vector<double> &vertex_contrib, vector<double> &vertex_state_new, bool pre_flag) {
     GastCoCo::VertexID now_vertex = left;
     int nextFlag = 0;
     if (cbl.VertexTableIn[left].Level == 1)
@@ -58,7 +56,7 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::V
 
             GastCoCo::prefetch_Chunk(nextPtr_tmp->nextLv1Chunk);
             co_await suspend_always{};
-            compute_pr_pull(nextPtr_tmp->nextLv1Chunk, cbl, now_vertex, vertex_state_old, vertex_state_new);
+            compute_pr_pull(nextPtr_tmp->nextLv1Chunk, now_vertex, vertex_contrib, vertex_state_new);
             // for(int i=0;i<nextPtr_tmp->nextLv1Chunk->count;i++)
             // {
             //     double delta = tmpPR * d;
@@ -92,7 +90,7 @@ generator<void> pagerank_one_iter(const GastCoCo::CBList &cbl, const GastCoCo::V
             // auto startLeaf = std::chrono::steady_clock::now();
             // //-----profiling-----
 
-            compute_pr_pull(nextPtr_tmp->nextLeafChunk, cbl, now_vertex, vertex_state_old, vertex_state_new);
+            compute_pr_pull(nextPtr_tmp->nextLeafChunk, now_vertex, vertex_contrib, vertex_state_new);
 
             // for(int i=0;i<nextPtr_tmp->nextLeafChunk->count;i++)
             // {

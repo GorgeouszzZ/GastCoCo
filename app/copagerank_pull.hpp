@@ -15,6 +15,8 @@ void pagerank(GastCoCo::CBList &graph, int thread_num, int coro_num, int iter)
     // iter *= all_coro_num;
     vector<double> vertex_state_old(graph.VertexNum, (double)1);
     vector<double> vertex_state_new(graph.VertexNum, 1 - d);
+    vector<double> vertex_contrib(graph.VertexNum, 0);
+    vector<double> vertex_out_degree_inv(graph.VertexNum, 0);
     uint32_t now_vertex = 0;
 
     auto partition_graph_result = SliceForCoro(graph, all_coro_num);
@@ -28,8 +30,21 @@ void pagerank(GastCoCo::CBList &graph, int thread_num, int coro_num, int iter)
 
     omp_set_num_threads(thread_num);
 
+#pragma omp parallel for
+    for (GastCoCo::VertexID vid = 0; vid < graph.VertexNum; ++vid)
+    {
+        auto out_degree = graph.VertexTableOut[vid].NeighboorCnt;
+        vertex_out_degree_inv[vid] = out_degree > 0 ? 1.0 / out_degree : 0;
+    }
+
     for (GastCoCo::IndexType it = 0; it < iter; ++it)
     {
+#pragma omp parallel for
+        for (GastCoCo::VertexID vid = 0; vid < graph.VertexNum; ++vid)
+        {
+            vertex_contrib[vid] = vertex_state_old[vid] * vertex_out_degree_inv[vid];
+        }
+
 #pragma omp parallel for
         for (uint32_t tid = 0; tid < thread_num; ++tid)
         {
@@ -40,7 +55,7 @@ void pagerank(GastCoCo::CBList &graph, int thread_num, int coro_num, int iter)
                 PrTasks[i] = pagerank_one_iter(graph,
                                                partition_graph_result[tid * coro_num + i],
                                                partition_graph_result[tid * coro_num + i + 1],
-                                               vertex_state_old, vertex_state_new,
+                                               vertex_contrib, vertex_state_new,
                                                true)
                                  .get_handle();
             }

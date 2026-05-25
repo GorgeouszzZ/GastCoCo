@@ -11,7 +11,21 @@ double d = 0.85;
 
 void pagerank(const GastCoCo::CBList& cbl, vector<double>& node_state_old, vector<double>& node_state_new, int thread_num, int iter) {
     omp_set_num_threads(thread_num);
+    vector<double> node_contrib(cbl.VertexNum, 0);
+    vector<double> node_out_degree_inv(cbl.VertexNum, 0);
+
+#pragma omp parallel for
+    for (GastCoCo::VertexID src = 0; src < cbl.VertexNum; ++src) {
+        auto out_degree = cbl.VertexTableOut[src].NeighboorCnt;
+        node_out_degree_inv[src] = out_degree > 0 ? 1.0 / out_degree : 0;
+    }
+
     while(iter) {
+#pragma omp parallel for
+        for (GastCoCo::VertexID src = 0; src < cbl.VertexNum; ++src) {
+            node_contrib[src] = node_state_old[src] * node_out_degree_inv[src];
+        }
+
     #pragma omp parallel for
         for(GastCoCo::VertexID dst = 0; dst < cbl.VertexNum; ++dst) {
             double sum = 0;
@@ -19,9 +33,7 @@ void pagerank(const GastCoCo::CBList& cbl, vector<double>& node_state_old, vecto
                 auto chunk = cbl.VertexTableIn[dst].Neighboor.nextLv1Chunk;
                 for(int i = 0; i < chunk->count; ++i) {
                     auto src = chunk->NeighboorChunk[i].dest;
-                    auto out_degree = cbl.VertexTableOut[src].NeighboorCnt;
-                    if(out_degree > 0)
-                        sum += node_state_old[src] / out_degree;
+                    sum += node_contrib[src];
                 }
             }
             else {
@@ -30,9 +42,7 @@ void pagerank(const GastCoCo::CBList& cbl, vector<double>& node_state_old, vecto
                     auto chunk = next_ptr.nextLeafChunk;
                     for(int i = 0; i < chunk->count; ++i) {
                         auto src = chunk->NeighboorChunk[i].dest;
-                        auto out_degree = cbl.VertexTableOut[src].NeighboorCnt;
-                        if(out_degree > 0)
-                            sum += node_state_old[src] / out_degree;
+                        sum += node_contrib[src];
                     }
                     next_ptr = chunk->nextPtr;
                 }
