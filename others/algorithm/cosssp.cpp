@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <chrono>
 
-#include "../other/atomic.hpp"
-#include "../other/prefetch.hpp"
+#include "../../other/atomic.hpp"
+#include "../../other/prefetch.hpp"
 
 #include <math.h>
 

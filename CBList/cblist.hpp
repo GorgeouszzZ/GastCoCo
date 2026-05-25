@@ -10,9 +10,9 @@
 #include <string>
 #include <chrono>
 #include <mutex>
-#include "type.hpp"
-#include "graphIO.hpp"
-#include "CBListChunkSize.hpp"
+#include "../other/type.hpp"
+#include "../other/graph_io.hpp"
+#include "cblist_chunk_size.hpp"
 // #include "../other/futex.hpp"
 
 //#pragma pack(1)

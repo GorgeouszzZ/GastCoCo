@@ -3,10 +3,10 @@
 #include <string>
 #include <gflags/gflags.h>
 #include <vector>
-#include "../other/type.hpp"
+#include "../../other/type.hpp"
 #include "omp.h"
-#include "../other/graphIO.hpp"
-#include "../workload/Slice_for_CBL_coro.hpp"
+#include "../../other/graph_io.hpp"
+#include "../../other/slice_for_cbl_coro.hpp"
 
 DEFINE_bool(sym, true, "Symmetric");
 DEFINE_string(iFile, "", "Transfer input file");

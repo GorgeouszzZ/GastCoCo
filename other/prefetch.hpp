@@ -1,4 +1,4 @@
-#include "../CBList/CBListChunkSize.hpp"
+#include "../CBList/cblist_chunk_size.hpp"
 
 namespace GastCoCo
 {

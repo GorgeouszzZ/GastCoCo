@@ -1,9 +1,11 @@
 #include "parameter_input.hpp"
-#include "CBList.hpp"
+#include "cblist.hpp"
 #include "copagerank_pull.hpp"
 
-GastCoCo::CBList* BuildGraph(std::string data_info_path, GastCoCo::ComputeMode compute_mode, bool origin_order)
-{
+GastCoCo::CBList* BuildGraph(
+    std::string data_info_path,
+    GastCoCo::ComputeMode compute_mode,
+    bool origin_order) {
 #ifdef DEBUG
     if (compute_mode == GastCoCo::ComputeMode::Pull)
         std::cout << "Building [PULL] graph from [" << data_info_path << "] by origin order[" << origin_order << "]." << std::endl;
@@ -23,38 +25,31 @@ GastCoCo::CBList* BuildGraph(std::string data_info_path, GastCoCo::ComputeMode c
     return graph_ptr;
 }
 
-void ExecuteAlgorithm
-(
+
+void ExecuteAlgorithm(
     std::string algorithm_name,
     std::string data_info_path, bool origin_order,
     bool compute_mode, bool execute_mode, bool prefetch_mode,
     int thread_num, int coroutine_num,
-    int iterations, int batch_size
-)
-{
-    if (algorithm_name == "pagerank" || algorithm_name == "pr")
-    {
-        if (compute_mode == false)
-        {
+    int iterations, int batch_size) {
+
+    if (algorithm_name == "pagerank" || algorithm_name == "pr") {
+        if (compute_mode == false) {
             // GastCoCo::CBList graph(FLAGS_data, GastCoCo::ComputeMode::Mixed, FLAGS_o);
             // pagerank(graph, FLAGS_t, FLAGS_c, FLAGS_i);
         }
-        else
-        {
+        else {
             // use pull only
             auto graph = BuildGraph(data_info_path, GastCoCo::ComputeMode::Push, origin_order);
             pagerank(*graph, thread_num, coroutine_num, iterations);
         }
     }
-    else if (algorithm_name == "sssp" || algorithm_name == "sp")
-    {
-        if (compute_mode == false)
-        {
+    else if (algorithm_name == "sssp" || algorithm_name == "sp") {
+        if (compute_mode == false) {
             // GastCoCo::CBList graph(FLAGS_data, GastCoCo::ComputeMode::Mixed, FLAGS_o);
             // pagerank(graph, FLAGS_t, FLAGS_c, FLAGS_i);
         }
-        else
-        {
+        else {
             // use push only
             // GastCoCo::CBList graph(FLAGS_data, GastCoCo::ComputeMode::Pull, FLAGS_o);
             // sssp(graph, FLAGS_t, FLAGS_c, FLAGS_i);
@@ -62,8 +57,8 @@ void ExecuteAlgorithm
     }
 }
 
-int main(int argc, char** argv)
-{
+
+int main(int argc, char** argv) {
 #ifdef LOGO
     PrintLOGO();
 #endif
@@ -77,4 +72,12 @@ int main(int argc, char** argv)
         FLAGS_t, FLAGS_c,
         FLAGS_i, FLAGS_bs
     );
+
+    unordered_map <int, int> map;
+    for (auto& [k, v] : map) {
+        break;
+    }
+    auto getmap = [&](int m) {
+        cout << m << endl;
+    };
 }

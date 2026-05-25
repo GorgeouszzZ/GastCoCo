@@ -1,5 +1,5 @@
-#include "Bind_cpu.hpp"
-#include "CBList.hpp"
+#include "bind_cpu.hpp"
+#include "cblist.hpp"
 #include <iostream>
 #include <stdio.h>
 #include <chrono>

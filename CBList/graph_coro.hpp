@@ -3,11 +3,11 @@
 #include <omp.h>
 
 #include "../other/type.hpp"
-#include "../CBList/CBList.hpp"
+#include "../CBList/cblist.hpp"
 #include "bitmap.hpp"
-#include "graphIO.hpp"
-#include "Slice_for_CBL_coro.hpp"
-#include "Coro_for_graph_v2.hpp"
+#include "../other/graph_io.hpp"
+#include "../other/slice_for_cbl_coro.hpp"
+#include "../other/coro_for_graph_v2.hpp"
 
 
 using namespace GastCoCo;

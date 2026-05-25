@@ -6,7 +6,7 @@
 
 #include "graph.hpp"
 #include "rmat_util.hpp"
-#include "../other/atomic.hpp"
+#include "../../other/atomic.hpp"
 #include <omp.h>
 
 

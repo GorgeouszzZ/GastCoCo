@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 include_directories(CBList)
 include_directories(other)
+option(GASTCOCO_DISABLE_NUMA_ALLOC "Use malloc/free for coroutine arenas instead of NUMA allocation" OFF)
 
 if(DEFINED CM)
     add_definitions(-DCM=${CM})
@@ -24,6 +25,10 @@ add_executable(gastcoco core/gastcoco.cpp)
 add_executable(coPageRankNew app/coPageRank.cpp)
 add_executable(pr app/standard_pr.cpp)
 target_link_libraries(gastcoco  libgflags.a libglog.a)
+if(GASTCOCO_DISABLE_NUMA_ALLOC)
+    target_compile_definitions(gastcoco PRIVATE GASTCOCO_DISABLE_NUMA_ALLOC)
+    message(STATUS "Disable NUMA allocation for coroutine arenas")
+endif()
 target_include_directories(gastcoco PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/app
     ${CMAKE_CURRENT_SOURCE_DIR}/CBList

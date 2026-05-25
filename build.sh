@@ -28,7 +28,12 @@ case "${bm,,}" in
 esac
 echo "Using [$dcm] integer multiple of the cache line size on CBList."
 echo "Using [$bm] mode"
-cmake -DCM="$dcm" -DCMAKE_BUILD_TYPE="$bm" ..
+disable_numa_alloc="OFF"
+if grep -qiE "microsoft|wsl" /proc/sys/kernel/osrelease 2>/dev/null; then
+    disable_numa_alloc="ON"
+fi
+echo "Disable NUMA coroutine arena allocation: [$disable_numa_alloc]"
+cmake -DCM="$dcm" -DCMAKE_BUILD_TYPE="$bm" -DGASTCOCO_DISABLE_NUMA_ALLOC="$disable_numa_alloc" ..
 
 echo "🔨 Compiling GastCoCo..."
 make

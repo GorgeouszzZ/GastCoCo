@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <coroutine>
 #include <stack>
-#include "../CBList/CBList.hpp"
-#include "Coro_for_graph_v2.hpp"
+#include "../CBList/cblist.hpp"
+#include "coro_for_graph_v2.hpp"
 #include "../other/prefetch.hpp"
 #include "../other/atomic.hpp"
 #include <mutex>

@@ -2,12 +2,16 @@
 
 #include <coroutine>
 #include <array>
+#include <cstdlib>
+#include <cstring>
 #include <map>
+#ifndef GASTCOCO_DISABLE_NUMA_ALLOC
 #include <numa.h>
+#endif
 #include <iostream>
 
-#include "sm-defs.hpp"
-#include "../CBList/CBListChunkSize.hpp"
+#include "sm_defs.hpp"
+#include "../CBList/cblist_chunk_size.hpp"
 #define CHAR_BIT      8
 
 // Simple thread caching allocator.
@@ -21,15 +25,25 @@ class tcalloc {
     static_assert(sizeof(FrameNode) == CACHE_LINE_SIZE, "");
 
    public:
-    tcalloc() { 
+    tcalloc() {
         memset(entries, 0, sizeof(entries));
 
-        constexpr size_t kArenaSize = 8 * 1024 * 1024;
+#ifdef GASTCOCO_DISABLE_NUMA_ALLOC
+        arena = static_cast<uint8_t *>(std::malloc(kArenaSize));
+#else
         arena = static_cast<uint8_t *>(
             numa_alloc_onnode(kArenaSize, numa_node_of_cpu(sched_getcpu())));
+#endif
+        ASSERT(arena);
         arena_top = arena;
     }
-    ~tcalloc() {}
+    ~tcalloc() {
+#ifdef GASTCOCO_DISABLE_NUMA_ALLOC
+        std::free(arena);
+#else
+        numa_free(arena, kArenaSize);
+#endif
+    }
 
     static inline uint32_t lg_down(uint64_t x) {
         static_assert(sizeof(unsigned long long) * CHAR_BIT == 64, "");
@@ -84,6 +98,7 @@ class tcalloc {
     }
 
    private:
+    static constexpr size_t kArenaSize = 8 * 1024 * 1024;
     static constexpr short kBeginSizeExp = 8;
     static constexpr short kEndSizeExp = 16;  // exclusive
     FrameNode *entries[kEndSizeExp - kBeginSizeExp];

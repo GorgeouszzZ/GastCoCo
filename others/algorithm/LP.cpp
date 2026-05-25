@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <chrono>
 
-#include "../other/atomic.hpp"
+#include "../../other/atomic.hpp"
 
 #include <math.h>
 

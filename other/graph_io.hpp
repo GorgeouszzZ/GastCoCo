@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iostream>
 #include "omp.h"
-#include "../other/SliceTask.hpp"
+#include "../other/slice_task.hpp"
 
 namespace GastCoCo
 {

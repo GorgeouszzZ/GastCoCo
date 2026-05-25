@@ -1,12 +1,12 @@
-#include "../other/Bind_cpu.hpp"
-#include "../CBList/CBList.hpp"
+#include "../other/bind_cpu.hpp"
+#include "../CBList/cblist.hpp"
 #include <iostream>
 #include <stdio.h>
 #include <chrono>
 #include <stack>
 #include <queue>
 #include "../other/rmat_util.hpp"
-#include "../other/Slice_for_CBL_coro.hpp"
+#include "../other/slice_for_cbl_coro.hpp"
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <coroutine>
 #include <stack>
-#include "../other/Coro_graph_v2.hpp"
+#include "../other/coro_for_graph_v2.hpp"
 #include "../other/atomic.hpp"
 
 using namespace std;

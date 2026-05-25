@@ -2,10 +2,10 @@
 #include <functional>
 #include <omp.h>
 
-#include "../other/type.hpp"
-#include "../CBList/CBList.hpp"
+#include "../../other/type.hpp"
+#include "../../CBList/cblist.hpp"
 #include "bitmap.hpp"
-#include "../workload/Slice_for_CBL_coro.hpp"
+#include "../../other/slice_for_cbl_coro.hpp"
 
 
 

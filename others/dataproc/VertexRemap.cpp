@@ -3,7 +3,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <iostream>
-#include "../other/graphIO.hpp"
+#include "../../other/graph_io.hpp"
 #include "omp.h"
 #include <algorithm>
 #include <random>

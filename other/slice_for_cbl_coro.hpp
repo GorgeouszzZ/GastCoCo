@@ -1,10 +1,10 @@
 #pragma once
-#include "../CBList/CBList.hpp"
+#include "../CBList/cblist.hpp"
 #include <vector>
 
 namespace GastCoCo
 {
-    [[nodiscard("SliceForCoroResult")]] std::vector<uint32_t> SliceForCoro(const CBList &cbl, uint32_t coro_num)
+    [[nodiscard("SliceForCoroResult")]] std::vector<uint32_t> SliceForCoro(const CBList& cbl, uint32_t coro_num)
     {
         std::vector<uint32_t> ChunkNumRecord(cbl.VertexNum + 1, 0);
         for (VertexID node = 0; node < cbl.VertexNum; ++node)
@@ -44,7 +44,7 @@ namespace GastCoCo
         return SliceResult;
     }
 
-    [[nodiscard("SliceForCoroDynamicResult")]] std::vector<uint32_t> SliceForCoroDynamic(const CBList &cbl, uint32_t coro_num)
+    [[nodiscard("SliceForCoroDynamicResult")]] std::vector<uint32_t> SliceForCoroDynamic(const CBList& cbl, uint32_t coro_num)
     {
         std::vector<uint32_t> ChunkNumRecord(cbl.VertexNum + 1, 0);
         for (VertexID node = 0; node < cbl.VertexNum; ++node)
@@ -144,10 +144,10 @@ namespace GastCoCo
         return Result;
     }
 
-    bool slice_for_coro(int *&result, int coro_num, CBList cbl)
+    bool slice_for_coro(int*& result, int coro_num, CBList cbl)
     {
         result = new int[coro_num + 1];
-        int *silce_num = new int[coro_num];
+        int* silce_num = new int[coro_num];
         int chunk_sum = 0;
         for (int i = 0;i < cbl.VertexNum;i++)
         {
@@ -181,7 +181,7 @@ namespace GastCoCo
 
     int scoreLv1 = 1;
     int scoreLeaf = 4;
-    [[nodiscard("SliceForCoroResultWithScore")]] std::vector<int32_t> SliceForCoroWithScore(const CBList &cbl, uint32_t coro_num)
+    [[nodiscard("SliceForCoroResultWithScore")]] std::vector<int32_t> SliceForCoroWithScore(const CBList& cbl, uint32_t coro_num)
     {
         std::vector<uint32_t> ChunkScoreRecord(cbl.VertexNum + 1, 0);
         for (VertexID node = 0; node < cbl.VertexNum; ++node)

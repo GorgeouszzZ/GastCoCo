@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "graph.hpp"
-#include "../other/atomic.hpp"
+#include "../../other/atomic.hpp"
 #include <omp.h>
 
 
