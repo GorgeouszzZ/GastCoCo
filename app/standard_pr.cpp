@@ -4,85 +4,64 @@
 #include <stdio.h>
 #include <chrono>
 #include <stack>
+#include <omp.h>
 
 using namespace std;
 double d = 0.85;
 
-void pagerank(const GastCoCo::CBList& cbl, vector<double>& node_state_old, vector<double>& node_state_new, int iter)
-{
-    while(iter)
-    {
-        int now_node = 0;
-        int nextFlag = 0;
-        if(cbl.VertexTableOut[0].Level == 1) nextFlag = CHUNK_LEVEL;
-        else if(cbl.VertexTableOut[0].Level == 2) nextFlag = LEAFCHUNK_LEVEL;
-        auto nextPtr_tmp = &(cbl.VertexTableOut[0].Neighboor);
-        int outDegree = cbl.VertexTableOut[0].NeighboorCnt;
-        double tmpPR = node_state_old[0] / outDegree;
-        while(now_node != cbl.VertexNum)
-        {
-            if(nextFlag%2 != 0)
-            {
-                for(int i=0;i<nextPtr_tmp->nextLv1Chunk->count;i++)
-                { 
-                    node_state_new[nextPtr_tmp->nextLv1Chunk->NeighboorChunk[i].dest] += tmpPR * d;
-                    // if(nextPtr_tmp->nextLv1Chunk->NeighboorChunk[i].dest == 0)
-                    // {
-                    //     printf("pr:%f + (%d)->tmp:%f\n",node_state_new[0],now_node,tmpPR);
-                    // }
+void pagerank(const GastCoCo::CBList& cbl, vector<double>& node_state_old, vector<double>& node_state_new, int thread_num, int iter) {
+    omp_set_num_threads(thread_num);
+    while(iter) {
+    #pragma omp parallel for
+        for(GastCoCo::VertexID dst = 0; dst < cbl.VertexNum; ++dst) {
+            double sum = 0;
+            if(cbl.VertexTableIn[dst].Level == 1) {
+                auto chunk = cbl.VertexTableIn[dst].Neighboor.nextLv1Chunk;
+                for(int i = 0; i < chunk->count; ++i) {
+                    auto src = chunk->NeighboorChunk[i].dest;
+                    auto out_degree = cbl.VertexTableOut[src].NeighboorCnt;
+                    if(out_degree > 0)
+                        sum += node_state_old[src] / out_degree;
                 }
-                nextFlag = nextPtr_tmp->nextLv1Chunk->nextType;
-                nextPtr_tmp = &(nextPtr_tmp->nextLv1Chunk->nextPtr);                 
             }
-            else
-            {
-                for(int i=0;i<nextPtr_tmp->nextLeafChunk->count;i++)
-                { 
-                    node_state_new[nextPtr_tmp->nextLeafChunk->NeighboorChunk[i].dest] += tmpPR * d;
-                    // if(nextPtr_tmp->nextLeafChunk->NeighboorChunk[i].dest == 0)
-                    // {
-                    //     printf("pr:%f + (%d)->tmp:%f\n",node_state_new[0],now_node,tmpPR);
-                    // }
+            else {
+                auto next_ptr = cbl.VertexTableIn[dst].Neighboor;
+                for(int chunk_i = 0; chunk_i < cbl.VertexTableIn[dst].ChunkCnt; ++chunk_i) {
+                    auto chunk = next_ptr.nextLeafChunk;
+                    for(int i = 0; i < chunk->count; ++i) {
+                        auto src = chunk->NeighboorChunk[i].dest;
+                        auto out_degree = cbl.VertexTableOut[src].NeighboorCnt;
+                        if(out_degree > 0)
+                            sum += node_state_old[src] / out_degree;
+                    }
+                    next_ptr = chunk->nextPtr;
                 }
-                nextFlag = nextPtr_tmp->nextLeafChunk->nextType;
-                nextPtr_tmp = &(nextPtr_tmp->nextLeafChunk->nextPtr);
             }
-            if(nextFlag<0)
-            {
-                now_node++;
-                outDegree = cbl.VertexTableOut[now_node].NeighboorCnt;
-                tmpPR = node_state_old[now_node] / outDegree;
-            }
+            node_state_new[dst] += sum * d;
         }
-        for(int i=0;i<node_state_old.size();i++)
-        {
-            // if(i < 5)
-            //     printf("%f ",node_state_new[i]);
-            double new_old = abs(node_state_new[i] - node_state_old[i]);
-            // if(abs(page.newPR - page.oldPR) > threshold) //可以在这里设置阈值判断收敛
-            //     shouldStop = 0;
-            node_state_old[i] = node_state_new[i];
+
+        swap(node_state_old, node_state_new);
+
+    #pragma omp parallel for
+        for(GastCoCo::VertexID i = 0; i < cbl.VertexNum; ++i) {
             node_state_new[i] = 1-d;
         }
         iter--;
         //getchar();
 
-        cout<<"remain:"<<iter<<endl;
-        printf("%f ",node_state_old[6]);
     }
 }
 
-int main(int argc, char ** argv)
-{
-    if(argc<3)
-    {
-        cout<<"[efile] [iter]\n";
+int main(int argc, char ** argv) {
+    if(argc<4) {
+        cout<<"[efile] [thread] [iter]\n";
         exit(-1);
     }
     string GRAPH_DIR = argv[1];
-    int iter = atoi(argv[2]);
+    int thread_num = atoi(argv[2]);
+    int iter = atoi(argv[3]);
     // BindCpu(2);
-    GastCoCo::CBList test1(GRAPH_DIR, GastCoCo::ComputeMode::Push, false);
+    GastCoCo::CBList test1(GRAPH_DIR, GastCoCo::GraphMode::Mixed, false);
     
     vector<double> node_state_old(test1.VertexNum, (double)1);
     vector<double> node_state_new(test1.VertexNum, 1-d);
@@ -90,7 +69,7 @@ int main(int argc, char ** argv)
 //==============================================================time_start====================
     auto start = std::chrono::steady_clock::now();//if compute new coroutine spending time?
 
-    pagerank(test1, node_state_old, node_state_new, iter);
+    pagerank(test1, node_state_old, node_state_new, thread_num, iter);
 
     auto end = std::chrono::steady_clock::now();
 //==============================================================================time_stop===========================

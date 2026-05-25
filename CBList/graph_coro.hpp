@@ -155,19 +155,17 @@ public:
     // MPI_Barrier(MPI_COMM_WORLD);
   }
 
-    void load_directed(std::string infopath, int input_threads, int input_coros = 2)
-    {
+    void load_directed(std::string infopath, int input_threads, int input_coros = 2) {
         // const auto& [V, E, datapath, isBinary] = GastCoCo::LoadEVFromInfoFile(infopath);
         // weight 1 mode
         // cblptr = new GastCoCo::CBList(V, E, datapath, 1);
         // cblptroutgoing = new GastCoCo::CBList(V, E, datapath, 2);
 
-        cblptr = new GastCoCo::CBList(infopath, ComputeMode::Mixed, false);
+        cblptr = new GastCoCo::CBList(infopath, GraphMode::Mixed, false);
         // cblptroutgoing = new GastCoCo::CBList(V, E, datapath, true);
 
 
-        if(cblptr == nullptr)
-        {
+        if(cblptr == nullptr) {
             printf("no graph data\n");
             exit(-1);
         }
@@ -187,8 +185,7 @@ public:
         }
     }
 
-    void init_thread_state_E()
-    {
+    void init_thread_state_E() {
         #pragma omp parallel for
         for (IndexType t_i=0;t_i<threads;t_i++) {
         thread_state[t_i]->curr = SFEresult[t_i];
@@ -197,8 +194,7 @@ public:
         }
     }
 
-    void init_thread_state_E_outgoing()
-    {
+    void init_thread_state_E_outgoing() {
         #pragma omp parallel for
         for (IndexType t_i=0;t_i<threads;t_i++) {
         thread_state[t_i]->curr = SFEresultoutgoing[t_i];
@@ -207,8 +203,7 @@ public:
         }
     }
 
-    void init_thread_state_V()
-    {
+    void init_thread_state_V() {
         #pragma omp parallel for
         for (IndexType t_i=0;t_i<threads;t_i++) {
         thread_state[t_i]->curr = SFVresult[t_i];
@@ -285,7 +280,7 @@ public:
         printf("sparse mode\n");
       #endif
       #pragma omp parallel reduction(+:reducer)
-        {
+      {
           R local_reducer = 0;
           int thread_id = omp_get_thread_num();
           VertexID final_p_v_i = thread_state[thread_id]->end;
@@ -461,13 +456,11 @@ public:
         }
         // -----coro-----
         std::vector<std::coroutine_handle<>> dense_signal_task(coroutines);
-        if(end_p_v_i - begin_p_v_i > 32)
-        {
+        if(end_p_v_i - begin_p_v_i > 32) {
           dense_signal_task[0] = dense_signal(this->cblptr, begin_p_v_i, begin_p_v_i+32).get_handle();
           dense_signal_task[1] = dense_signal(this->cblptr, begin_p_v_i+32, end_p_v_i).get_handle();
         }
-        else
-        {
+        else {
           int half_v = (end_p_v_i - begin_p_v_i)/2;
           dense_signal_task[0] = dense_signal(this->cblptr, begin_p_v_i, begin_p_v_i+half_v).get_handle();
           dense_signal_task[1] = dense_signal(this->cblptr, begin_p_v_i+half_v, end_p_v_i).get_handle();
@@ -492,13 +485,11 @@ public:
       //     }
           // -----coro-----
           std::vector<std::coroutine_handle<>> dense_signal_task(coroutines);
-          if(end_p_v_i - begin_p_v_i > 32)
-          {
+          if(end_p_v_i - begin_p_v_i > 32) {
             dense_signal_task[0] = dense_signal(this->cblptr, begin_p_v_i, begin_p_v_i+32).get_handle();
             dense_signal_task[1] = dense_signal(this->cblptr, begin_p_v_i+32, end_p_v_i).get_handle();
           }
-          else
-          {
+          else {
             int half_v = (end_p_v_i - begin_p_v_i)/2;
             dense_signal_task[0] = dense_signal(this->cblptr, begin_p_v_i, begin_p_v_i+half_v).get_handle();
             dense_signal_task[1] = dense_signal(this->cblptr, begin_p_v_i+half_v, end_p_v_i).get_handle();
@@ -533,7 +524,7 @@ public:
         printf("sparse mode\n");
       #endif
       #pragma omp parallel reduction(+:reducer)
-        {
+      {
           R local_reducer = 0;
           int thread_id = omp_get_thread_num();
           VertexID final_p_v_i = thread_state[thread_id]->end;
@@ -551,13 +542,11 @@ public:
             // -----coro-----
             // int local_reducer = 0;
             std::vector<std::coroutine_handle<>> sparse_signal_task(coroutines);
-            if(end_p_v_i - begin_p_v_i > 32)
-            {
+            if(end_p_v_i - begin_p_v_i > 32) {
               sparse_signal_task[0] = sparse_signal(this->cblptroutgoing, begin_p_v_i, begin_p_v_i+32, local_reducer).get_handle();
               sparse_signal_task[1] = sparse_signal(this->cblptroutgoing, begin_p_v_i+32, end_p_v_i, local_reducer).get_handle();
             }
-            else
-            {
+            else {
               int half_v = (end_p_v_i - begin_p_v_i)/2;
               sparse_signal_task[0] = sparse_signal(this->cblptroutgoing, begin_p_v_i, begin_p_v_i+half_v, local_reducer).get_handle();
               sparse_signal_task[1] = sparse_signal(this->cblptroutgoing, begin_p_v_i+half_v, end_p_v_i, local_reducer).get_handle();
@@ -609,13 +598,11 @@ public:
             // -----coro-----
             // int local_reducer = 0;
             std::vector<std::coroutine_handle<>> dense_signal_task(coroutines);
-            if(end_p_v_i - begin_p_v_i > 32)
-            {
+            if(end_p_v_i - begin_p_v_i > 32) {
               dense_signal_task[0] = dense_signal(this->cblptr, begin_p_v_i, begin_p_v_i+32, local_reducer).get_handle();
               dense_signal_task[1] = dense_signal(this->cblptr, begin_p_v_i+32, end_p_v_i, local_reducer).get_handle();
             }
-            else
-            {
+            else {
               int half_v = (end_p_v_i - begin_p_v_i)/2;
               dense_signal_task[0] = dense_signal(this->cblptr, begin_p_v_i, begin_p_v_i+half_v, local_reducer).get_handle();
               dense_signal_task[1] = dense_signal(this->cblptr, begin_p_v_i+half_v, end_p_v_i, local_reducer).get_handle();

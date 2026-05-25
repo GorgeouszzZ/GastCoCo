@@ -59,7 +59,9 @@ make
 ./toolkit/coPageRank [data] [datainfo] [thread] [coro] [iter]
 ./toolkit/coBatchInsert [data] [datainfo] [thread] [coro] [batchsize]
 # rebuilding for new
-./gastcoco --app=pagerank --t=[thread] --c=[coro] --i=[iter] --data=[datainfo] --cm
+./gastcoco --app=pagerank --t=[thread] --c=[coro] --i=[iter] --data=[datainfo] --gm
+# --gm enables graph-mode execution. For PageRank, GastCoCo loads mixed graph storage and computes by pull traversal.
+./pr [datainfo] [thread] [iter]
 # parameter flag introduction
 ./gastcoco --help
 # version

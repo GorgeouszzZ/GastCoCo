@@ -3,8 +3,7 @@
 #include <gflags/gflags.h>
 #include "omp.h"
 
-void PrintLOGO()
-{
+void PrintLOGO() {
      std::cout << "   ______           __  ______      ______" << std::endl;
      std::cout << "  / ____/___ ______/ /_/ ____/___  / ____/___" << std::endl;
      std::cout << " / / __/ __ `/ ___/ __/ /   / __ \\/ /   / __ \\" << std::endl;
@@ -12,8 +11,7 @@ void PrintLOGO()
      std::cout << "\\____/\\__,_/____/\\__/\\____/\\____/\\____/\\____/" << std::endl;
 }
 
-static bool ValidateApp(const char* flagname, const std::string& value)
-{
+static bool ValidateApp(const char* flagname, const std::string& value) {
      if (value == "pagerank" || value == "pr")
           return true;
      if (value == "sssp" || value == "sp")
@@ -34,18 +32,15 @@ static bool ValidateApp(const char* flagname, const std::string& value)
      return false;
 }
 
-static bool ValidatePath(const char* flagname, const std::string& value)
-{
+static bool ValidatePath(const char* flagname, const std::string& value) {
      if (value != "")
           return true;
      printf("Please enter the graph data path.\n");
      return false;
 }
 
-static bool ValidatePositiveNumber(const char* flagname, int32_t value)
-{
-     if (value > 0)
-     {
+static bool ValidatePositiveNumber(const char* flagname, int32_t value) {
+     if (value > 0) {
           if (flagname == "t" && value > omp_get_max_threads())
                printf("NOTE: The number of threads is currently greater than the number of logical threads of the CPU.\n");
           return true;
@@ -54,8 +49,7 @@ static bool ValidatePositiveNumber(const char* flagname, int32_t value)
      return false;
 }
 
-static bool ValidatePositiveNumberAndZero(const char* flagname, int32_t value)
-{
+static bool ValidatePositiveNumberAndZero(const char* flagname, int32_t value) {
      if (value >= 0)
           return true;
      printf("Please enter the positive number or 0.\n");
@@ -70,7 +64,7 @@ DEFINE_int32(s, 0, "Source in some apps.");
 DEFINE_int32(i, 10, "Iteration in some apps.");
 DEFINE_int32(bs, 10000, "Batch size in batch update.");
 DEFINE_bool(em, false, "Execute mode: true = Sequential, false = Interleaved.");
-DEFINE_bool(cm, false, "Compute mode: true = pull/push, false = pull+push.");
+DEFINE_bool(gm, false, "Graph mode: true = directional graph mode, false = mixed graph mode.");
 DEFINE_bool(pm, false, "Prefetch mode: true = All Soft, false = Hybrid prefetch.");
 DEFINE_bool(o, false, "Dataset origin order: true = load graph in order, false = loading graph out of order(enable parallel).");
 
